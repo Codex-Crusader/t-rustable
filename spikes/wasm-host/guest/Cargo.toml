@@ -1,0 +1,21 @@
+[package]
+name = "spike-guest"
+description = "Spike 3: guest component."
+version = "0.0.0"
+edition = "2024"
+license = "PolyForm-Noncommercial-1.0.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.63"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+# Built for wasm targets only, outside the spikes workspace.
+[workspace]

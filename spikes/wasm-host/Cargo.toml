@@ -1,0 +1,10 @@
+[package]
+name = "spike-wasm-host"
+description = "Spike 3: wasmtime component host with limits."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+wasmtime = "49"

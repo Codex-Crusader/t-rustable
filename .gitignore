@@ -5,3 +5,4 @@ node_modules/
 /spikes/.pdfium
 /spikes/assets
 /spikes/out
+/spikes/wasm-host/guest/target

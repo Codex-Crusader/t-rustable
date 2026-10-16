@@ -1,0 +1,15 @@
+package spike:api@0.1.0;
+
+interface host {
+  log: func(msg: string);
+  page-count: func() -> u32;
+}
+
+world spike {
+  import host;
+
+  export run: func(n: u32) -> result<u32, string>;
+  export spin: func();
+  export grow-memory: func(mb: u32) -> u32;
+  export trap: func();
+}
