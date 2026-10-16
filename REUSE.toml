@@ -1,0 +1,37 @@
+version = 1
+
+# Default: app code is PolyForm Noncommercial. The last matching entry wins.
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
+SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
+
+# Mod API, SDK, template, and example mods are MIT.
+[[annotations]]
+path = [
+    "wit/**",
+    "crates/t-rustable-sdk/**",
+    "mods/template/**",
+    "mods/examples/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
+SPDX-License-Identifier = "MIT"
+
+# Documentation.
+[[annotations]]
+path = "docs/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
+SPDX-License-Identifier = "CC-BY-NC-4.0"
+
+# CLA.md is adapted from the Harmony Individual Contributor License Agreement 1.0.
+[[annotations]]
+path = "CLA.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = [
+    "2011 Harmony Agreements",
+    "2026 Bhargavaram Krishnapur",
+]
+SPDX-License-Identifier = "CC-BY-3.0"
