@@ -66,7 +66,7 @@ Rules:
 3. A long render uses PDFium progressive render. The pause callback reads the cancel flag, so a render can stop between steps. M1 verified this: PDFium checks the callback about once per 100 page objects. One large object cannot be interrupted.
 4. Each request gets exactly one reply: `Ok(result)`, `Err(error)`, or `Cancelled`.
 5. A reply goes back on a channel that the sender gives with the request.
-6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic. M1 found that PDFium cannot be loaded a second time in the same process, so the engine cannot restart it. The handling is a REVIEW 1 decision (see `docs/spikes/m1-report.md`, Summary).
+6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic. M1 found that `pdfium-render` cannot load PDFium a second time in one process, but the raw C API can shut it down and start it again. The handling depends on the binding choice at REVIEW 1 (see `docs/spikes/m1-report.md`, Summary).
 7. A native crash (for example a segfault in PDFium or qpdf) cannot be caught. It stops the app. On the next start, the journal recovers the sessions.
 
 The engine runs in the app process for v1. A later milestone can move it to a child process. Then the protocol goes over stdin and stdout pipes, never over a TCP socket.
@@ -237,7 +237,7 @@ The app has no network access (ADR 0011).
 |---|---|
 | A command is not valid | The transaction is rejected. The UI shows the error from `validate`. Nothing changes. |
 | `apply` fails | Rollback to the state before the transaction. The UI shows the error. |
-| The engine panics (Rust panic) | The session is marked broken. The engine restarts PDFium, and the core reloads all open sessions from their journals. |
+| The engine panics (Rust panic) | The session is marked broken. The restart of PDFium depends on the binding choice at REVIEW 1: a restart in the same process and a reload of all sessions from their journals, or an app restart. |
 | PDFium or qpdf crashes (native crash) | The app stops. On the next start, the app offers to recover each session from its journal. |
 | A mod traps, uses too much memory, or runs too long | The host stops the call and shows an error. After 3 failures in a row, the host disables the mod. |
 | The save fails | The target file does not change, because the rename is the last step. The temporary file is deleted. |

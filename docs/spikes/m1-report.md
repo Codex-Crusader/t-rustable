@@ -4,13 +4,25 @@ Status: complete. Spikes are in `spikes/`. Run `bash spikes/fetch-deps.sh` first
 
 ## Summary
 
-All four spikes pass on Windows and on Linux (WSL2). No result breaks a locked decision. Three results need a decision from the owner before Milestone 3:
+The four spikes pass on Windows. On Linux (WSL2), spikes 2, 3, and 4 pass, and spike 1 passes for render speed and tile delivery. Scrolling smoothness on Linux is not measured, because WSLg had no GPU (see spike 1). No result breaks a locked decision.
 
-1. pdfium-render can load PDFium only once per process. The engine therefore cannot restart PDFium after a Rust panic, as ARCHITECTURE section 2 says. Options: (a) after an engine panic, mark all sessions broken and ask the user to restart the app; the journal recovers the work. (b) Move the engine to a child process in M3 instead of a later milestone. Recommendation: (a) for v1, because the journal already covers recovery, and (b) stays on the roadmap.
-2. pdfium-render 0.9 hides the raw PDFium API. Progressive render needs it. Recommendation: use pdfium-render plus a small raw layer for the missing functions, and write our own binding only if the gaps grow.
-3. Rust mods must be built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI and the host refuses it. This shapes the mod template in M2.
+Decisions for the owner before Milestone 3:
 
-## Test setup
+1. PDFium binding and engine restart (one decision). ADR 0001 says M1 selects the binding.
+   - `pdfium-render` 0.9 keeps its raw API and its document and page handles private. A raw call such as `FPDF_RenderPageBitmap_Start` can therefore not reach a document that `pdfium-render` holds. Progressive render and cancel of the edited document need that call.
+   - `pdfium-render` binds PDFium once per process, so the engine cannot restart PDFium after a Rust panic.
+   - With the raw C API, PDFium can shut down (`FPDF_DestroyLibrary`) and start again in the same process. Tested: 3 rounds on 2 files, Windows and Linux, 2 to 32 ms per cycle.
+   - Option A: our own thin binding over the C API (`libloading` and the functions that we use). It gives progressive render, cancel, and a restart after a Rust panic. It costs more code in the engine crate.
+   - Option B: `pdfium-render` for everything. No progressive render or cancel for edited documents, and after an engine panic the user must restart the app (the journal recovers the work).
+   - Recommendation: option A. Progressive render and cancel are part of the locked engine design (ADR 0001 and ARCHITECTURE section 2).
+2. Rust mods are built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI, and the host refuses it. This shapes the mod template and the guide in M2.
+
+Not measured in M1:
+
+- Scrolling smoothness on a real Linux desktop. Run the spike 1 GUI command on the Arch install.
+- Glyph coverage of fonts that are embedded in third-party PDFs. M1 checked only our bundled font. Embedded fonts are often subsets, and reading their data needs the raw API. Moved to the `ReplaceText` milestone.
+
+## Test setup## Test setup
 
 | Item | Value |
 |---|---|
@@ -38,6 +50,7 @@ Run: `cargo run --release -p spike-pdfium-edit -- edit [third-party.pdf]`, then 
 | Progressive render with a pause callback | Works through the raw API | Same | `FPDF_RenderPageBitmap_Start`, `FPDF_RenderPage_Continue`, and `IFSDK_PAUSE` through `libloading`. `pdfium-render` 0.9 does not expose them. |
 | Cancel in the middle of a render | Works | Works | `FPDF_RenderPage_Close` after the first pause. Took less than 0.01 ms. The next full render of the page is correct. |
 | No V8 and no XFA in the loaded build | Confirmed | Confirmed | `args.gn` of the build. |
+| Shut down and start PDFium again in one process | Works through the raw API | Works | `FPDF_DestroyLibrary`, then `FPDF_InitLibrary`, open, render. 3 rounds. Not possible with `pdfium-render`. Run: `-- reinit <file.pdf>`. |
 
 Progressive render details (render at 200 percent, pause requested at every check):
 
@@ -54,7 +67,7 @@ PDFium checks the pause callback about once per 100 page objects. A page with fe
 ### Findings for later milestones
 
 1. `AddText` and `ReplaceText` must use CID fonts. A simple TrueType font loses every character outside one byte.
-2. `pdfium-render` 0.9 hides the raw FPDF API (the accessor is crate-private). The engine needs raw calls for progressive render and probably for other gaps. Options for M3: use `pdfium-render` for most calls and a small raw layer for the gaps, or write our own thin binding. Both work, because the raw layer can load the same library. This does not change ADR 0001.
+2. `pdfium-render` 0.9 hides the raw FPDF API and its handles (crate-private). The `progressive` test ran in a process without `pdfium-render`. A raw layer next to `pdfium-render` cannot reach a document that `pdfium-render` holds. See Summary, decision 1.
 3. Cancel of a render is fast on pages with many objects. On simple pages, a render is short anyway (under 10 ms here). The cancel design in ARCHITECTURE section 2 holds.
 4. Glyph coverage needs `ttf-parser` (or a similar crate) next to PDFium.
 
@@ -76,8 +89,6 @@ Setup: wasmtime 49.0.3, guest built with `wit-bindgen` 0.63 and `wasm-tools` 1.2
 | The host survives a trap | Works | Works | After a trap, the instance is not used again. A fresh store and instance work at once. |
 | Three failures in a row disable the mod | Works | Works | A counter in the host wrapper. |
 
-Dependency check: `cargo deny --config ../deny.toml check licenses bans sources` on the spikes workspace (wasmtime, pdfium-render, ttf-parser, libloading). All third-party crates pass the license list. The ban list finds no HTTP client. The only license errors are the two spike crates themselves, which are our own PolyForm code.
-
 ### Findings for later milestones
 
 1. Mods must be built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI interfaces, and the host refuses it. The mod template and the 15-minute guide (M2) must use this build. The CLI command `mods new` (M6) can run both steps. This supports ADR 0007.
@@ -86,6 +97,13 @@ Dependency check: `cargo deny --config ../deny.toml check licenses bans sources`
 4. A memory-limit failure looks the same as a panic. To tell the user "out of memory", M3 can set `trap_on_grow_failure(true)` in `StoreLimits`, or count `StoreLimits` denials.
 5. The epoch deadline must count real time, not ticks, because tick length depends on the platform timer.
 6. The call cost of about 0.5 µs is low enough for a pointer event on each mouse move.
+
+## Dependency check (all four spikes)
+
+Run in `spikes/`: `cargo deny --config ../deny.toml check licenses bans sources`. The tree contains Tauri 2.12.4, wasmtime 49.0.3, pdfium-render 0.9.4, png, ttf-parser, and libloading.
+
+- Licenses: every third-party crate passes the allow list. The only rejections are the four spike crates, which are our own PolyForm code.
+- Bans: the first run found `reqwest`, `hyper`, and `hyper-util`. `tauri` 2.12.4 depends on them only for Android and iOS (`Cargo.toml`: `cfg(any(target_os = "android", ...))`), for its mobile dev server. `cargo tree --target` shows none of them for `x86_64` or `aarch64` Linux and Windows. `deny.toml` now checks only the shipped targets (`[graph] targets`). With that, the ban list passes. ADR 0011 records this.
 
 ## Spike 1: rendering speed
 
@@ -126,10 +144,10 @@ On Linux, WSLg could not start a GPU driver (`EGL` and `ZINK` errors in the log)
 
 ### Findings for later milestones
 
-1. Both targets are met with a large margin on both platforms: first page about 20 ms in the bench and about 100 ms in the window, page render 3 to 14 ms.
+1. Both targets are met with a large margin: first page about 20 ms in the bench on both platforms and about 100 ms in the Windows window, page render 3 to 14 ms.
 2. PNG is fast enough. Use `Fast` compression for tiles: it is 3 to 6 times faster than `Balanced`, and the tiles never leave the computer, so the larger size does not matter.
 3. The tile URL form is different per platform: `http://trtile.localhost/` on Windows and `trtile://localhost/` on Linux. The UI must build URLs with the same rule as Tauri's `convertFileSrc`, and the CSP `img-src` must list both forms. ARCHITECTURE section 11 now records this.
-4. pdfium-render binds PDFium once per process (`PdfiumLibraryBindingsAlreadyInitialized` on a second bind). The engine can therefore not "restart PDFium" in the same process, as ARCHITECTURE section 2 says for a Rust panic. Options for M3: after a panic, mark all sessions broken and ask for an app restart, or move the engine to a child process earlier than planned. This needs a decision at REVIEW 1.
+4. `pdfium-render` binds PDFium once per process (`PdfiumLibraryBindingsAlreadyInitialized` on a second bind). The raw C API can restart PDFium in the same process. See Summary, decision 1.
 5. A tile render that uses `set_origin` disables form field rendering in PDFium. Forms come in a later milestone, so this needs a decision then: flatten form fields for display, or render form fields in a separate pass.
 
 ## Spike 2: mod panel isolation
