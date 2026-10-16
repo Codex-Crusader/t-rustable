@@ -1,3 +1,7 @@
 /target
 node_modules/
 /THIRD_PARTY_LICENSES
+/spikes/target
+/spikes/.pdfium
+/spikes/assets
+/spikes/out

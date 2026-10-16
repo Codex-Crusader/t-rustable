@@ -1,0 +1,12 @@
+[package]
+name = "spike-pdfium-edit"
+description = "Spike 4: check the PDFium edit APIs."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+pdfium-render = "0.9.4"
+ttf-parser = "0.25"
+libloading = "0.8"

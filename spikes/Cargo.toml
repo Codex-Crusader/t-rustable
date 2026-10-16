@@ -1,0 +1,10 @@
+# Milestone 1 risk spikes. Throwaway code, not part of the main workspace.
+[workspace]
+resolver = "3"
+members = ["pdfium-edit"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "PolyForm-Noncommercial-1.0.0"
+publish = false
