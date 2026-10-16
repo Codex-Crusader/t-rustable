@@ -1,42 +1,35 @@
-# CLA signature collection: proposal
+# CLA signature collection
 
-Status: proposal. Nothing is installed. The owner decides.
+Status: installed in `.github/workflows/cla.yml`. The logic is in `.github/scripts/cla.js`. CI runs its tests (`.github/scripts/cla.test.js`).
 
-## Requirement
+## Why our own workflow
 
-A GitHub Action collects CLA signatures on pull requests and stores the signatures in this repository.
-
-## Candidates (checked 2026-10-16)
+Candidates that we checked on 2026-10-16:
 
 | Candidate | License | Status | Stores signatures in the repo |
 |---|---|---|---|
 | `contributor-assistant/github-action` (CLA Assistant Lite) | Apache-2.0 | Archived. Last release v2.6.1 on 2024-09-26. | Yes |
-| `cla-assistant/cla-assistant` | Apache-2.0 | Maintained (last push 2026-10-13). | No. It is a hosted service with its own database. |
-| Forks of CLA Assistant Lite (for example `iainmcgin/cla-github-action`, `SiliconLabsSoftware/action-cla-assistant`) | Apache-2.0 | Active, but each has 5 stars or fewer and a small user base. | Yes |
+| `cla-assistant/cla-assistant` | Apache-2.0 | Maintained. | No. It is a hosted service with its own database. |
+| Forks of CLA Assistant Lite | Apache-2.0 | Active, but each has 5 stars or fewer. | Yes |
 
-The hosted service fails the requirement. The archived action gets no security fixes. No fork has a large user base.
+The hosted service stores signatures outside the repository. The archived action gets no security fixes. Thus we use a small workflow of our own. It uses only `actions/checkout` and `actions/github-script` (MIT, maintained by GitHub), both pinned by commit SHA.
 
-## Recommendation
+## How it works
 
-Write a small workflow in this repository. It uses only `actions/github-script` (MIT, maintained by GitHub, v9.0.0 on 2026-04-09).
+1. A pull request opens or changes, or someone comments on a pull request.
+2. The script gets the commit authors of the pull request. The owner and bots do not need to sign.
+3. The script reads `signatures/cla.json` from the branch `cla-signatures`.
+4. If a commit author posts the exact sign phrase, the script adds their user ID, user name, CLA version, pull request number, comment ID, and date. The first signature makes `cla-signatures` as an orphan branch that holds only this file.
+5. The script sets the commit status `cla` to success or failure, and posts or updates one bot comment.
 
-How it works:
+Security rules:
 
-1. Trigger on `pull_request_target` (opened, synchronize) and on `issue_comment` (created).
-2. Get the list of commit authors of the pull request through the GitHub API.
-3. Read `signatures/cla.json` from a separate branch named `cla-signatures`.
-4. If a contributor writes the exact comment "I have read the CLA Document and I hereby sign the CLA", add their GitHub user ID, login, the pull request number, the comment ID, the CLA version, and the date to the file. Commit the change to `cla-signatures`.
-5. Set a commit status `cla` to success when all authors signed, or failure when one or more did not sign.
+- The workflow checks out only the default branch. It never checks out or runs code from the pull request.
+- The job has only `contents: write`, `pull-requests: write`, and `statuses: write`.
+- One run at a time (`concurrency: cla`), so two signatures cannot overwrite each other.
 
-Security rules for the workflow:
+## Setup for the owner (after the first push)
 
-- Never check out or run code from the pull request. `pull_request_target` runs with write access.
-- Give the job only `contents: write`, `pull-requests: write`, and `statuses: write`.
-- Pin `actions/github-script` by commit SHA.
-- Protect the `cla-signatures` branch so that only the workflow and the owner can push.
-
-The workflow is about 100 lines of JavaScript. The owner controls all of it.
-
-## Alternative
-
-Use the archived CLA Assistant Lite, pinned to commit `ca4a40a7d1004f18d9960b404b97e5f30a505a08` (tag v2.6.1). It works and it is widely used, but it gets no fixes.
+1. In the branch protection rule for `main`, make the status check `cla` required.
+2. After the first signature makes the branch `cla-signatures`, protect it. Do not permit force pushes or deletion.
+3. If the CLA text changes, change `CLA_VERSION` and `SIGN_PHRASE` in `.github/scripts/cla.js`. Old signatures stay valid for the contributions that were made under them.

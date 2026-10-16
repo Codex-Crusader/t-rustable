@@ -14,8 +14,21 @@ You must sign the Contributor License Agreement in `CLA.md` before the owner can
 
 The CLA is a license grant, not a copyright assignment. You keep your copyright. You give the owner the right to license your contribution under any terms. The owner promises that your contribution also stays available under the project license that applies on the day that you submit it.
 
-<!-- TODO(owner): Replace this paragraph when the signature workflow is installed. See docs/cla-signatures.md. -->
-The signature process is not active yet. Until it is active, the owner cannot accept external contributions.
+To sign:
+
+1. Open your pull request. A bot posts a comment if you did not sign yet.
+2. Read `CLA.md`.
+3. Post a comment in the pull request with exactly this text:
+
+   ```
+   I have read the T-Rustable CLA version 1.0 in CLA.md and I agree to it.
+   ```
+
+You sign one time. The signature applies to all of your later pull requests. The CLA check gets the status "success" when all commit authors of the pull request signed.
+
+Each commit must use an email that is linked to your GitHub account. If it is not, the check cannot find you.
+
+The workflow stores your GitHub user name, your user ID, and the date in public, in the branch `cla-signatures`.
 
 ## Work that you do not own
 

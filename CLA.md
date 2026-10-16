@@ -80,8 +80,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL YOU BE LIABL
 
 ## 6. Miscellaneous
 
-<!-- TODO(owner): Choose the governing law before the first external contribution. Get legal advice. -->
-6.1 This Agreement will be governed by and construed in accordance with the laws of [JURISDICTION, TO BE SET BY THE OWNER] excluding its conflicts of law provisions. Under certain circumstances, the governing law in this section might be superseded by the United Nations Convention on Contracts for the International Sale of Goods ("UN Convention") and the parties intend to avoid the application of the UN Convention to this Agreement and, thus, exclude the application of the UN Convention in its entirety to this Agreement.
+6.1 This Agreement will be governed by and construed in accordance with the laws of India excluding its conflicts of law provisions. Under certain circumstances, the governing law in this section might be superseded by the United Nations Convention on Contracts for the International Sale of Goods ("UN Convention") and the parties intend to avoid the application of the UN Convention to this Agreement and, thus, exclude the application of the UN Convention in its entirety to this Agreement.
 
 6.2 This Agreement sets out the entire agreement between You and Us for Your Contributions to Us and overrides all other agreements or understandings.
 
@@ -99,7 +98,7 @@ This agreement is adapted from the Harmony Individual Contributor License Agreem
 
 Changes from the original:
 
-- Filled in the project name, the owner, and the instructions.
+- Filled in the project name, the owner, the instructions, and the governing law.
 - Selected outbound license Option Five in Section 2.3. Removed the other options.
 - Removed the optional media license list and the "[or Your Affiliates]" text.
 - Removed the reference to the entity version in Section 3(c).

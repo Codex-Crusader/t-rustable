@@ -4,8 +4,9 @@
 
 Do not report a security problem in a public issue.
 
-<!-- TODO(owner): When the GitHub repository exists, turn on private vulnerability reporting and replace this paragraph with a link to it. -->
-The private reporting channel is not available yet. It will be GitHub private vulnerability reporting on the repository.
+Use GitHub private vulnerability reporting: https://github.com/Codex-Crusader/t-rustable/security/advisories/new
+
+Only you and the owner can see the report.
 
 Give the version, the platform, the steps to reproduce, and a sample file if you can share it.
 
