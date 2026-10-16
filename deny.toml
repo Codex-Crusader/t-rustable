@@ -1,4 +1,4 @@
-# cargo-deny configuration. See CLAUDE.md, "Licensing rules" and "Offline rules".
+# cargo-deny configuration. See ADR 0010 (licensing) and ADR 0011 (offline policy).
 
 [graph]
 all-features = true

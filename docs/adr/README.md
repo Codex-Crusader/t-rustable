@@ -2,7 +2,7 @@
 
 One file per major decision: `NNNN-title.md`. Each record has the sections Context, Decision, and Consequences.
 
-A locked decision in `CLAUDE.md` changes only through a new ADR that the owner approves. The new ADR names the ADR that it replaces, and the old ADR gets the status "Superseded by NNNN".
+Each accepted ADR is a locked decision. It changes only through a new ADR that the owner approves. The new ADR names the ADR that it replaces, and the old ADR gets the status "Superseded by NNNN".
 
 | ADR | Title | Status |
 |---|---|---|

@@ -1,6 +1,6 @@
 # T-Rustable architecture
 
-This document describes how T-Rustable works. The locked decisions are in `CLAUDE.md`. The reasons for each decision are in `docs/adr/`.
+This document describes how T-Rustable works. The locked decisions and their reasons are in `docs/adr/`.
 
 Status: design for Milestone 0. The spikes in Milestone 1 can change details. Items marked "Verify in M1" are not tested yet.
 
@@ -167,7 +167,9 @@ Special rules:
 
 - If the session has any redaction, the save is always a full rewrite, never an incremental save.
 - After a redaction, the save verifies the output: no text in redacted areas, and no redacted string anywhere in the output bytes. Any match stops the save.
-- The app opens an encrypted PDF only with the user's password.
+- The app opens an encrypted PDF only with the user's password. The app has no feature that removes or bypasses PDF restrictions.
+- The feature that covers content with a shape is named "Cover and replace". It is never called "redaction", because the covered content stays in the file.
+- Before the app saves a `.trex` file, it warns that the file contains the original document.
 
 ## 10. Rendering
 

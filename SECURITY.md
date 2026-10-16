@@ -33,4 +33,4 @@ T-Rustable opens files from people that the user may not trust. The app must sta
 
 ## Data safety
 
-Redaction, "Cover and replace", and encrypted files have their own rules in `CLAUDE.md`, "Data safety rules". A failure of redaction verification is a security bug.
+Redaction, "Cover and replace", and encrypted files have their own rules in `docs/ARCHITECTURE.md`, section 9. A failure of redaction verification is a security bug.

@@ -4,9 +4,20 @@ Thank you for your interest. Read this file before you open a pull request.
 
 ## Before you start
 
-1. Read `CLAUDE.md`. It contains the locked decisions and the project rules.
+1. Read `docs/ARCHITECTURE.md` and the decision records in `docs/adr/`. Each ADR is a locked decision.
 2. For a large change, open an issue first. A change to a locked decision needs a new ADR in `docs/adr/` and approval from the owner.
-3. Write all text in ASD-STE100 Simplified Technical English. Do not use em dashes.
+3. Read the project rules below.
+
+## Project rules
+
+- Write all docs, comments, and commit messages in ASD-STE100 Simplified Technical English. Do not use em dashes. Keep code comments short.
+- Keep solutions simple. Solve the current milestone only.
+- The app is fully offline. Do not add an HTTP client, a network plugin, telemetry, or an auto-updater (ADR 0011).
+- Dependencies must have one of these licenses: MIT, Apache-2.0, Apache-2.0 WITH LLVM-exception, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0, Unicode-3.0 (ADR 0010). Never AGPL or GPL. Fonts must be OFL.
+- MIT parts (`wit/`, `t-rustable-sdk`, `mods/template/`, `mods/examples/`, `docs/mod-api/`) must never depend on PolyForm parts.
+- Commands and the mod API use stable IDs, never indices (ADR 0005).
+- Built-in tools are mods. If a built-in tool needs something that the mod API does not give, fix the API (ADR 0006).
+- Call the project "source-available, free for non-commercial use". Never "open source".
 
 ## Sign the CLA
 
@@ -36,7 +47,7 @@ Submit only work that you wrote yourself. If a contribution contains work by ano
 
 1. Mark that part clearly in the pull request.
 2. Give its source, its copyright holder, and its license.
-3. Make sure that the license is on the allowed list in `CLAUDE.md`, "Licensing rules".
+3. Make sure that the license is on the allowed list in "Project rules".
 
 Do not submit work under AGPL or GPL. Do not submit work that you got under a confidentiality agreement.
 

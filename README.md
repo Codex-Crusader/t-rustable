@@ -4,7 +4,17 @@
 
 T-Rustable is a local, offline PDF editor for Linux and Windows. Its main feature is modding: you can make your own tools and add them to the app. The built-in tools are mods too, and they use the same API as your mods.
 
-Status: early development. The app does not work yet. See `KICKOFF.md` for the milestones.
+Status: early development. The app does not work yet.
+
+## Roadmap
+
+1. Repository, licenses, and design documents (done).
+2. Risk spikes: rendering speed, mod panel isolation, WASM mod host, PDFium edit APIs.
+3. Mod API v0.1.
+4. Core, command model, and mod host.
+5. GUI.
+6. External mods: `.tmod` packages and the mod manager.
+7. Command line and batch jobs.
 
 ## License
 
