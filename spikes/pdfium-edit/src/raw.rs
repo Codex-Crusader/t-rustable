@@ -183,3 +183,59 @@ unsafe fn full_render(api: &Api, doc: Handle, index: c_int, scale: f32) -> f64 {
         t
     }
 }
+
+/// Can PDFium shut down and start again in the same process?
+/// Init, open, render, close, destroy, then the same again, three times.
+pub fn reinit(lib_dir: &Path, pdf: &Path) {
+    let lib_path = lib_dir.join(libloading::library_filename("pdfium"));
+    // SAFETY: loading the pinned PDFium build; the symbols below match its C API.
+    unsafe {
+        let lib = Library::new(lib_path).expect("load PDFium");
+        let init: Symbol<unsafe extern "C" fn()> = lib.get(b"FPDF_InitLibrary").unwrap();
+        let destroy: Symbol<unsafe extern "C" fn()> = lib.get(b"FPDF_DestroyLibrary").unwrap();
+        let close_doc: Symbol<unsafe extern "C" fn(Handle)> =
+            lib.get(b"FPDF_CloseDocument").unwrap();
+        let api = Api {
+            load_document: lib.get(b"FPDF_LoadDocument").unwrap(),
+            page_count: lib.get(b"FPDF_GetPageCount").unwrap(),
+            load_page: lib.get(b"FPDF_LoadPage").unwrap(),
+            close_page: lib.get(b"FPDF_ClosePage").unwrap(),
+            page_width: lib.get(b"FPDF_GetPageWidthF").unwrap(),
+            page_height: lib.get(b"FPDF_GetPageHeightF").unwrap(),
+            bitmap_create: lib.get(b"FPDFBitmap_Create").unwrap(),
+            bitmap_fill: lib.get(b"FPDFBitmap_FillRect").unwrap(),
+            bitmap_destroy: lib.get(b"FPDFBitmap_Destroy").unwrap(),
+            render: lib.get(b"FPDF_RenderPageBitmap").unwrap(),
+            render_start: lib.get(b"FPDF_RenderPageBitmap_Start").unwrap(),
+            render_continue: lib.get(b"FPDF_RenderPage_Continue").unwrap(),
+            render_close: lib.get(b"FPDF_RenderPage_Close").unwrap(),
+        };
+        let path = CString::new(pdf.to_str().unwrap()).unwrap();
+        let mut ok = true;
+        let mut details = vec![];
+        for round in 1..=3 {
+            let started = Instant::now();
+            init();
+            let doc = (api.load_document)(path.as_ptr(), std::ptr::null());
+            if doc.is_null() {
+                ok = false;
+                details.push(format!("round {round}: open failed"));
+                destroy();
+                continue;
+            }
+            let pages = (api.page_count)(doc);
+            let render_ms = full_render(&api, doc, 0, 1.0);
+            close_doc(doc);
+            destroy();
+            details.push(format!(
+                "round {round}: {pages} pages, render {render_ms:.1} ms, cycle {:.1} ms",
+                ms(started.elapsed())
+            ));
+        }
+        crate::report(
+            "PDFium destroy and init again in one process (raw API)",
+            ok,
+            details.join("; "),
+        );
+    }
+}

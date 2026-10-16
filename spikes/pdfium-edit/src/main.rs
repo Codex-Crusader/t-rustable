@@ -4,6 +4,7 @@
 //!   edit [third-party.pdf]   text add/remove, fonts, glyph coverage, character boxes
 //!   progressive <file.pdf> [page]   progressive render with a pause callback, and cancel
 //!   heavy                    writes out/heavy.pdf with many objects per page
+//!   reinit <file.pdf>        destroy and init PDFium again in one process
 
 mod raw;
 
@@ -47,6 +48,7 @@ fn main() {
             args.get(3).map(|p| p.parse().unwrap()),
         ),
         Some("heavy") => heavy(),
+        Some("reinit") => raw::reinit(&pdfium_lib_dir(), Path::new(&args[2])),
         _ => edit(args.get(2).map(PathBuf::from)),
     }
 }
