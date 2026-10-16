@@ -21,6 +21,7 @@ The app has no network access.
 
 - Users update the app by hand.
 - For a bug report, the user must send the local log.
-- A dependency that pulls in an HTTP client is blocked, even if the app never uses it. Milestone 1 checks the real dependency trees of Tauri and wasmtime against the ban list.
-- Tauri 2 can send `invoke` as a fetch request to an IPC origin. Milestone 1 must verify that `invoke` works with `connect-src 'none'`. If it does not, the CSP change needs a new ADR.
+- A dependency that pulls in an HTTP client is blocked, even if the app never uses it.
+- `cargo deny` checks only the targets that we ship (`[graph] targets` in `deny.toml`). M1 found that `tauri` 2.12 depends on `reqwest`, `hyper`, and `hyper-util` for Android and iOS only. These crates are not in the Linux or Windows trees. The Tauri, wasmtime, and pdfium-render trees for Linux and Windows pass the ban list.
+- Tauri 2 sends `invoke` as a fetch request to an IPC origin first. M1 verified that `invoke` still works with `connect-src 'none'`: Tauri falls back to its postMessage channel, which is not slower.
 - The ban list is a list of names. It does not catch a new HTTP crate with a different name. Reviewers must check new dependencies.

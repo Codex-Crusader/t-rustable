@@ -2,6 +2,13 @@
 
 [graph]
 all-features = true
+# Only the platforms we ship (ADR 0011). Tauri pulls reqwest and hyper for Android and iOS only.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+]
 
 [advisories]
 yanked = "deny"
