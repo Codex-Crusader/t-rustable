@@ -78,3 +78,48 @@ Dependency check: `cargo deny --config ../deny.toml check licenses bans sources`
 4. A memory-limit failure looks the same as a panic. To tell the user "out of memory", M3 can set `trap_on_grow_failure(true)` in `StoreLimits`, or count `StoreLimits` denials.
 5. The epoch deadline must count real time, not ticks, because tick length depends on the platform timer.
 6. The call cost of about 0.5 µs is low enough for a pointer event on each mouse move.
+
+## Spike 1: rendering speed
+
+Run: `cargo run --release -p spike-render-tiles -- bench [extra.pdf]` for numbers without a window, and `cargo run --release -p spike-render-tiles` for the GUI test. The GUI opens a Tauri window, loads 512 px tiles through the `trtile` URI scheme, scrolls by itself at 3,000 CSS px per second for 6 seconds, writes `spikes/out/render-gui-<os>.json`, and closes.
+
+Setup: one engine thread owns PDFium and renders each tile into a tile-sized bitmap (`set_fixed_size` plus `set_origin`). PNG encoding runs outside the engine thread, with the `png` crate. 100 percent zoom is 96 dpi.
+
+Test files: a generated 50-page A4 sample (text, 60 vector circles, and one image per page, 15 MB because the images are not compressed), and a local third-party book PDF (409 pages, 3.7 MB, first 50 pages measured, not in the repository).
+
+### Bench (no window)
+
+| Measure | Windows, sample | Windows, book | Linux, sample | Linux, book | Target |
+|---|---|---|---|---|---|
+| Open the file | 10.2 ms | 2.7 ms | 8.7 ms | 5.6 ms | |
+| First page: open, 6 tiles, PNG | 20.9 ms | 14.6 ms | 21.7 ms | 17.8 ms | under 1 s |
+| Page render at 100 percent, mean / p95 / max | 4.9 / 6.5 / 6.6 ms | 4.0 / 6.4 / 7.4 ms | 4.9 / 6.1 / 7.1 ms | 2.6 / 4.9 / 6.7 ms | under 100 ms |
+| Page render at 200 percent, mean / p95 / max | 12.5 / 14.1 / 14.3 ms | 9.6 / 14.1 / 18.3 ms | 11.4 / 13.1 / 13.6 ms | 5.4 / 9.8 / 13.7 ms | |
+| PNG encode per tile, Fast, mean / p95 | 0.5 / 1.2 ms | 0.4 / 1.1 ms | 0.4 / 0.9 ms | 0.3 / 0.7 ms | |
+| PNG size per tile, Fast, mean | 64 KB | 28 KB | 64 KB | 28 KB | |
+| PNG encode per tile, Balanced, mean / p95 | 1.7 / 4.1 ms | 2.7 / 10.9 ms | 1.6 / 3.9 ms | 2.6 / 10.4 ms | |
+| PNG size per tile, Balanced, mean | 10 KB | 19 KB | 10 KB | 19 KB | |
+
+### GUI (generated sample)
+
+| Measure | Windows (WebView2 155) | Linux (WSLg, WebKitGTK 2.52) |
+|---|---|---|
+| URL form that loads | `http://trtile.localhost/...` only | `trtile://localhost/...` only |
+| Device pixel ratio | 1.25 | 1 |
+| First tile visible, from page start | 89 ms | 207 ms |
+| First page complete, from page start | 103 ms | 211 ms |
+| Tile latency in the page (request to `load`), mean / p95 | 12.9 / 21.9 ms | 11.2 / 14.0 ms |
+| Frame time while scrolling, mean / p95 / max | 6.1 / 6.2 / 6.5 ms (165 Hz screen) | 47.8 / 58 / 77 ms |
+| Frames over 33 ms | 0 of 991 | 124 of 126 |
+
+The page times include the page load, one `invoke` call, and two probe requests for the URL forms.
+
+On Linux, WSLg could not start a GPU driver (`EGL` and `ZINK` errors in the log), so WebKitGTK drew in software. The Linux frame times show this WSL setup, not desktop Linux. Tile delivery on Linux is as fast as on Windows. To measure scrolling on a real Linux desktop, run `bash spikes/fetch-deps.sh` and the GUI command above there.
+
+### Findings for later milestones
+
+1. Both targets are met with a large margin on both platforms: first page about 20 ms in the bench and about 100 ms in the window, page render 3 to 14 ms.
+2. PNG is fast enough. Use `Fast` compression for tiles: it is 3 to 6 times faster than `Balanced`, and the tiles never leave the computer, so the larger size does not matter.
+3. The tile URL form is different per platform: `http://trtile.localhost/` on Windows and `trtile://localhost/` on Linux. The UI must build URLs with Tauri's `convertFileSrc` rule (or the same logic), and the CSP `img-src` must list both forms. ARCHITECTURE section 11 is updated in this direction.
+4. pdfium-render binds PDFium once per process (`PdfiumLibraryBindingsAlreadyInitialized` on a second bind). The engine can therefore not "restart PDFium" in the same process, as ARCHITECTURE section 2 says for a Rust panic. Options for M3: after a panic, mark all sessions broken and ask for an app restart, or move the engine to a child process earlier than planned. This needs a decision at REVIEW 1.
+5. A tile render that uses `set_origin` disables form field rendering in PDFium. Forms come in a later milestone, so this needs a decision then: flatten form fields for display, or render form fields in a separate pass.

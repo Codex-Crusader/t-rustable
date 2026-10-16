@@ -1,7 +1,7 @@
 # Milestone 1 risk spikes. Throwaway code, not part of the main workspace.
 [workspace]
 resolver = "3"
-members = ["pdfium-edit", "wasm-host"]
+members = ["pdfium-edit", "wasm-host", "render-tiles"]
 exclude = ["wasm-host/guest"]
 
 [workspace.package]

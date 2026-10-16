@@ -6,3 +6,4 @@ node_modules/
 /spikes/assets
 /spikes/out
 /spikes/wasm-host/guest/target
+/spikes/*/gen

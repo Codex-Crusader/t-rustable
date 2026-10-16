@@ -1,0 +1,14 @@
+{
+  "productName": "spike-render-tiles",
+  "version": "0.0.0",
+  "identifier": "dev.trustable.spike.render",
+  "build": { "frontendDist": "ui" },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [{ "label": "main", "title": "Spike 1: render tiles", "width": 1200, "height": 900 }],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' trtile: http://trtile.localhost; connect-src ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico", "icons/icon.png"] }
+}

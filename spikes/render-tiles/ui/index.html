@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Spike 1: render tiles</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #555; font: 13px sans-serif; }
+    #status { position: fixed; top: 0; left: 0; right: 0; z-index: 2; background: #222; color: #eee; padding: 4px 8px; }
+    #scroller { position: absolute; top: 24px; bottom: 0; left: 0; right: 0; overflow-y: auto; }
+    #pages { position: relative; margin: 0 auto; }
+    .page { position: absolute; background: #fff; box-shadow: 0 1px 4px #0008; overflow: hidden; }
+    .page img { position: absolute; display: block; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading</div>
+  <div id="scroller"><div id="pages"></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
