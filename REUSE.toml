@@ -26,6 +26,20 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
 SPDX-License-Identifier = "CC-BY-NC-4.0"
 
+# Mod API docs are MIT, so mod authors can copy the code samples (ADR 0010).
+[[annotations]]
+path = "docs/mod-api/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
+SPDX-License-Identifier = "MIT"
+
+# Name and logos are not licensed (TRADEMARKS.md).
+[[annotations]]
+path = "branding/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Bhargavaram Krishnapur"
+SPDX-License-Identifier = "LicenseRef-T-Rustable-Trademark"
+
 # CLA.md is adapted from the Harmony Individual Contributor License Agreement 1.0.
 [[annotations]]
 path = "CLA.md"

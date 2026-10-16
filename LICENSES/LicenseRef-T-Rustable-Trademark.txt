@@ -1,0 +1,6 @@
+All rights reserved.
+
+This file is a logo or other brand asset of T-Rustable. No license is granted
+to use, copy, modify, or distribute it, except as part of an unmodified copy of
+this repository. See TRADEMARKS.md for the permitted uses of the T-Rustable
+name and logos.

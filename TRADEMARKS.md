@@ -1,6 +1,6 @@
 # Trademarks
 
-The name "T-Rustable" and the T-Rustable logos are not covered by any license in this repository. The licenses in `LICENSE` and `LICENSES/` apply to the code and documentation only. They do not give you permission to use the name or the logos.
+The name "T-Rustable" and the T-Rustable logos (the files in `branding/`, including the T-Rex with glasses) are not covered by any license in this repository. The licenses in `LICENSE` and `LICENSES/` apply to the code and documentation only. They do not give you permission to use the name or the logos.
 
 You can use the name to refer to this project in a correct way. For example, "a mod for T-Rustable" is permitted.
 
