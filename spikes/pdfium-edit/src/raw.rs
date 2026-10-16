@@ -39,10 +39,25 @@ struct Api<'l> {
     page_width: Symbol<'l, unsafe extern "C" fn(Handle) -> f32>,
     page_height: Symbol<'l, unsafe extern "C" fn(Handle) -> f32>,
     bitmap_create: Symbol<'l, unsafe extern "C" fn(c_int, c_int, c_int) -> Handle>,
-    bitmap_fill: Symbol<'l, unsafe extern "C" fn(Handle, c_int, c_int, c_int, c_int, c_ulong) -> c_int>,
+    bitmap_fill:
+        Symbol<'l, unsafe extern "C" fn(Handle, c_int, c_int, c_int, c_int, c_ulong) -> c_int>,
     bitmap_destroy: Symbol<'l, unsafe extern "C" fn(Handle)>,
-    render: Symbol<'l, unsafe extern "C" fn(Handle, Handle, c_int, c_int, c_int, c_int, c_int, c_int)>,
-    render_start: Symbol<'l, unsafe extern "C" fn(Handle, Handle, c_int, c_int, c_int, c_int, c_int, c_int, *mut Pause) -> c_int>,
+    render:
+        Symbol<'l, unsafe extern "C" fn(Handle, Handle, c_int, c_int, c_int, c_int, c_int, c_int)>,
+    render_start: Symbol<
+        'l,
+        unsafe extern "C" fn(
+            Handle,
+            Handle,
+            c_int,
+            c_int,
+            c_int,
+            c_int,
+            c_int,
+            c_int,
+            *mut Pause,
+        ) -> c_int,
+    >,
     render_continue: Symbol<'l, unsafe extern "C" fn(Handle, *mut Pause) -> c_int>,
     render_close: Symbol<'l, unsafe extern "C" fn(Handle)>,
 }
@@ -90,13 +105,19 @@ pub fn progressive(lib_dir: &Path, pdf: &Path, page_index: Option<c_int>) {
         if let Some(i) = page_index {
             (slowest, slowest_ms) = (i, full_render(&api, doc, i, scale));
         }
-        println!("baseline: page {slowest} renders in {slowest_ms:.1} ms (200%, full render, document has {pages} pages)");
+        println!(
+            "baseline: page {slowest} renders in {slowest_ms:.1} ms (200%, full render, document has {pages} pages)"
+        );
 
         // Progressive render that pauses at every chance.
         let page = (api.load_page)(doc, slowest);
         let (bitmap, w, h) = new_bitmap(&api, page, scale);
         let mut state = PauseState { calls: 0 };
-        let mut pause = Pause { version: 1, need_to_pause_now: pause_always, user: &mut state as *mut _ as *mut c_void };
+        let mut pause = Pause {
+            version: 1,
+            need_to_pause_now: pause_always,
+            user: &mut state as *mut _ as *mut c_void,
+        };
         let started = Instant::now();
         let mut status = (api.render_start)(bitmap, page, 0, 0, w, h, 0, FLAG_ANNOT, &mut pause);
         let mut steps = 1;
@@ -132,7 +153,9 @@ pub fn progressive(lib_dir: &Path, pdf: &Path, page_index: Option<c_int>) {
         crate::report(
             "cancel in the middle",
             status == RENDER_TOBECONTINUED,
-            format!("first step {first_step_ms:.1} ms, close took {cancel_ms:.2} ms, full render after cancel {again:.1} ms"),
+            format!(
+                "first step {first_step_ms:.1} ms, close took {cancel_ms:.2} ms, full render after cancel {again:.1} ms"
+            ),
         );
         (api.close_page)(page);
     }

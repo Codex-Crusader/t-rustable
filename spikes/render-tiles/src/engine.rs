@@ -11,12 +11,20 @@ pub const TILE: u32 = 512;
 pub const PX_PER_PT: f32 = 96.0 / 72.0;
 
 pub fn spikes_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 pub fn pdfium() -> Pdfium {
-    let platform = if cfg!(windows) { "win-x64/bin" } else { "linux-x64/lib" };
-    let lib = Pdfium::pdfium_platform_library_name_at_path(&spikes_dir().join(".pdfium").join(platform));
+    let platform = if cfg!(windows) {
+        "win-x64/bin"
+    } else {
+        "linux-x64/lib"
+    };
+    let lib =
+        Pdfium::pdfium_platform_library_name_at_path(&spikes_dir().join(".pdfium").join(platform));
     Pdfium::new(Pdfium::bind_to_library(lib).expect("load PDFium"))
 }
 
@@ -30,7 +38,13 @@ pub struct Tile {
 
 pub enum Request {
     Info(Sender<Vec<(f32, f32)>>),
-    Tile { page: u16, scale: f32, tx: u32, ty: u32, reply: Sender<Result<Tile, String>> },
+    Tile {
+        page: u16,
+        scale: f32,
+        tx: u32,
+        ty: u32,
+        reply: Sender<Result<Tile, String>>,
+    },
 }
 
 /// `path` None means the generated sample. PDFium can load only once per process,
@@ -51,10 +65,20 @@ fn run(path: Option<PathBuf>, rx: Receiver<Request>) {
     for request in rx {
         match request {
             Request::Info(reply) => {
-                let sizes = doc.pages().iter().map(|p| (p.width().value, p.height().value)).collect();
+                let sizes = doc
+                    .pages()
+                    .iter()
+                    .map(|p| (p.width().value, p.height().value))
+                    .collect();
                 let _ = reply.send(sizes);
             }
-            Request::Tile { page, scale, tx, ty, reply } => {
+            Request::Tile {
+                page,
+                scale,
+                tx,
+                ty,
+                reply,
+            } => {
                 let result = doc
                     .pages()
                     .get(page as i32)
@@ -79,7 +103,12 @@ pub fn render_tile(page: &PdfPage, scale: f32, tx: u32, ty: u32) -> Result<Tile,
         .set_origin(-((tx * TILE) as i32), -((ty * TILE) as i32));
     page.render_into_bitmap_with_config(&mut bitmap, &config)?;
     let bgra = bitmap.as_raw_bytes();
-    Ok(Tile { width, height, bgra, render_ms: started.elapsed().as_secs_f64() * 1000.0 })
+    Ok(Tile {
+        width,
+        height,
+        bgra,
+        render_ms: started.elapsed().as_secs_f64() * 1000.0,
+    })
 }
 
 pub fn tiles_for(page_w: f32, page_h: f32, scale: f32) -> (u32, u32) {
@@ -116,14 +145,26 @@ pub fn ensure_sample(pdfium: &Pdfium) -> PathBuf {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let font_bytes = std::fs::read(spikes_dir().join("assets/NotoSans-Regular.ttf")).unwrap();
     let mut doc = pdfium.create_new_pdf().unwrap();
-    let font = doc.fonts_mut().load_true_type_from_bytes(&font_bytes, true).unwrap();
+    let font = doc
+        .fonts_mut()
+        .load_true_type_from_bytes(&font_bytes, true)
+        .unwrap();
     let words = "The quick brown fox jumps over the lazy dog while the engine renders tiles";
     for n in 0..50u32 {
-        let mut page = doc.pages_mut().create_page_at_end(PdfPagePaperSize::a4()).unwrap();
+        let mut page = doc
+            .pages_mut()
+            .create_page_at_end(PdfPagePaperSize::a4())
+            .unwrap();
         page.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
         let objects = page.objects_mut();
         objects
-            .create_text_object(PdfPoints::new(56.0), PdfPoints::new(790.0), format!("Page {}", n + 1), font, PdfPoints::new(20.0))
+            .create_text_object(
+                PdfPoints::new(56.0),
+                PdfPoints::new(790.0),
+                format!("Page {}", n + 1),
+                font,
+                PdfPoints::new(20.0),
+            )
             .unwrap();
         for line in 0..40 {
             let y = 760.0 - line as f32 * 12.0;
@@ -131,17 +172,39 @@ pub fn ensure_sample(pdfium: &Pdfium) -> PathBuf {
                 continue;
             }
             objects
-                .create_text_object(PdfPoints::new(56.0), PdfPoints::new(y), words, font, PdfPoints::new(10.0))
+                .create_text_object(
+                    PdfPoints::new(56.0),
+                    PdfPoints::new(y),
+                    words,
+                    font,
+                    PdfPoints::new(10.0),
+                )
                 .unwrap();
         }
         for i in 0..60u32 {
-            let (x, y) = (300.0 + (i % 10) as f32 * 22.0, 470.0 + (i / 10) as f32 * 22.0);
+            let (x, y) = (
+                300.0 + (i % 10) as f32 * 22.0,
+                470.0 + (i / 10) as f32 * 22.0,
+            );
             let color = PdfColor::new((i * 4 + n) as u8, 90, (200 - i * 3) as u8, 255);
             objects
-                .create_path_object_circle_at(PdfPoints::new(x), PdfPoints::new(y), PdfPoints::new(9.0), None, None, Some(color))
+                .create_path_object_circle_at(
+                    PdfPoints::new(x),
+                    PdfPoints::new(y),
+                    PdfPoints::new(9.0),
+                    None,
+                    None,
+                    Some(color),
+                )
                 .unwrap();
         }
-        let img = image::RgbImage::from_fn(400, 300, |x, y| image::Rgb([(x / 2) as u8, (y * 255 / 300) as u8, ((x + y + n) % 256) as u8]));
+        let img = image::RgbImage::from_fn(400, 300, |x, y| {
+            image::Rgb([
+                (x / 2) as u8,
+                (y * 255 / 300) as u8,
+                ((x + y + n) % 256) as u8,
+            ])
+        });
         objects
             .create_image_object(
                 PdfPoints::new(56.0),

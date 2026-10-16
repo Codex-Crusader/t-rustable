@@ -12,11 +12,18 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 fn spikes_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 fn pdfium_lib_dir() -> PathBuf {
-    let platform = if cfg!(windows) { "win-x64/bin" } else { "linux-x64/lib" };
+    let platform = if cfg!(windows) {
+        "win-x64/bin"
+    } else {
+        "linux-x64/lib"
+    };
     spikes_dir().join(".pdfium").join(platform)
 }
 
@@ -34,7 +41,11 @@ fn report(name: &str, ok: bool, detail: impl AsRef<str>) {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
-        Some("progressive") => raw::progressive(&pdfium_lib_dir(), Path::new(&args[2]), args.get(3).map(|p| p.parse().unwrap())),
+        Some("progressive") => raw::progressive(
+            &pdfium_lib_dir(),
+            Path::new(&args[2]),
+            args.get(3).map(|p| p.parse().unwrap()),
+        ),
         Some("heavy") => heavy(),
         _ => edit(args.get(2).map(PathBuf::from)),
     }
@@ -52,36 +63,100 @@ fn edit(third_party: Option<PathBuf>) {
     let unicode = "Grüße ж € ‰";
     {
         let mut doc = pdfium.create_new_pdf().unwrap();
-        let simple = doc.fonts_mut().load_true_type_from_bytes(&font_bytes, false).unwrap();
-        let cid = doc.fonts_mut().load_true_type_from_bytes(&font_bytes, true).unwrap();
-        let mut page = doc.pages_mut().create_page_at_end(PdfPagePaperSize::a4()).unwrap();
+        let simple = doc
+            .fonts_mut()
+            .load_true_type_from_bytes(&font_bytes, false)
+            .unwrap();
+        let cid = doc
+            .fonts_mut()
+            .load_true_type_from_bytes(&font_bytes, true)
+            .unwrap();
+        let mut page = doc
+            .pages_mut()
+            .create_page_at_end(PdfPagePaperSize::a4())
+            .unwrap();
         let objects = page.objects_mut();
-        objects.create_text_object(PdfPoints::new(72.0), PdfPoints::new(700.0), latin, simple, PdfPoints::new(24.0)).unwrap();
-        objects.create_text_object(PdfPoints::new(72.0), PdfPoints::new(650.0), remove_me, simple, PdfPoints::new(24.0)).unwrap();
-        objects.create_text_object(PdfPoints::new(72.0), PdfPoints::new(600.0), unicode, simple, PdfPoints::new(24.0)).unwrap();
-        objects.create_text_object(PdfPoints::new(72.0), PdfPoints::new(550.0), unicode, cid, PdfPoints::new(24.0)).unwrap();
+        objects
+            .create_text_object(
+                PdfPoints::new(72.0),
+                PdfPoints::new(700.0),
+                latin,
+                simple,
+                PdfPoints::new(24.0),
+            )
+            .unwrap();
+        objects
+            .create_text_object(
+                PdfPoints::new(72.0),
+                PdfPoints::new(650.0),
+                remove_me,
+                simple,
+                PdfPoints::new(24.0),
+            )
+            .unwrap();
+        objects
+            .create_text_object(
+                PdfPoints::new(72.0),
+                PdfPoints::new(600.0),
+                unicode,
+                simple,
+                PdfPoints::new(24.0),
+            )
+            .unwrap();
+        objects
+            .create_text_object(
+                PdfPoints::new(72.0),
+                PdfPoints::new(550.0),
+                unicode,
+                cid,
+                PdfPoints::new(24.0),
+            )
+            .unwrap();
         doc.save_to_file(&out.join("edit-1.pdf")).unwrap();
     }
     let text = page_text(&pdfium, &out.join("edit-1.pdf"));
-    report("add text, simple font", text.contains(latin), format!("extracted: {:?}", text.lines().next().unwrap_or("")));
+    report(
+        "add text, simple font",
+        text.contains(latin),
+        format!("extracted: {:?}", text.lines().next().unwrap_or("")),
+    );
     let unicode_lines: Vec<&str> = text.lines().filter(|l| l.contains("Gr")).collect();
     let simple_line = unicode_lines.first().map(|l| l.trim()).unwrap_or("");
     let cid_line = unicode_lines.get(1).map(|l| l.trim()).unwrap_or("");
-    report("add non-Latin text, simple TrueType font", simple_line == unicode, format!("extracted {simple_line:?}"));
-    report("add non-Latin text, CID TrueType font", cid_line == unicode, format!("extracted {cid_line:?}"));
+    report(
+        "add non-Latin text, simple TrueType font",
+        simple_line == unicode,
+        format!("extracted {simple_line:?}"),
+    );
+    report(
+        "add non-Latin text, CID TrueType font",
+        cid_line == unicode,
+        format!("extracted {cid_line:?}"),
+    );
     let embedded = {
-        let doc = pdfium.load_pdf_from_file(&out.join("edit-1.pdf"), None).unwrap();
+        let doc = pdfium
+            .load_pdf_from_file(&out.join("edit-1.pdf"), None)
+            .unwrap();
         let page = doc.pages().get(0).unwrap();
         page.objects()
             .iter()
-            .filter_map(|o| o.as_text_object().map(|t| t.font().is_embedded().unwrap_or(false)))
+            .filter_map(|o| {
+                o.as_text_object()
+                    .map(|t| t.font().is_embedded().unwrap_or(false))
+            })
             .collect::<Vec<_>>()
     };
-    report("font embedded", embedded.iter().all(|e| *e), format!("{embedded:?}"));
+    report(
+        "font embedded",
+        embedded.iter().all(|e| *e),
+        format!("{embedded:?}"),
+    );
 
     // 2. Remove a text object, save, reopen, confirm it is gone.
     {
-        let doc = pdfium.load_pdf_from_file(&out.join("edit-1.pdf"), None).unwrap();
+        let doc = pdfium
+            .load_pdf_from_file(&out.join("edit-1.pdf"), None)
+            .unwrap();
         let mut page = doc.pages().get(0).unwrap();
         let index = page
             .objects()
@@ -94,7 +169,11 @@ fn edit(third_party: Option<PathBuf>) {
         doc.save_to_file(&out.join("edit-2.pdf")).unwrap();
     }
     let text = page_text(&pdfium, &out.join("edit-2.pdf"));
-    report("remove text object", !text.contains(remove_me) && text.contains(latin), "own file");
+    report(
+        "remove text object",
+        !text.contains(remove_me) && text.contains(latin),
+        "own file",
+    );
 
     if let Some(path) = third_party {
         remove_from_third_party(&pdfium, &path, &out);
@@ -102,8 +181,10 @@ fn edit(third_party: Option<PathBuf>) {
 
     // 3. Glyph coverage through ttf-parser.
     let face = ttf_parser::Face::parse(&font_bytes, 0).unwrap();
-    let coverage: Vec<(char, bool)> =
-        ['A', 'ü', 'ж', '€', '‰', '中', '🙂'].iter().map(|c| (*c, face.glyph_index(*c).is_some())).collect();
+    let coverage: Vec<(char, bool)> = ['A', 'ü', 'ж', '€', '‰', '中', '🙂']
+        .iter()
+        .map(|c| (*c, face.glyph_index(*c).is_some()))
+        .collect();
     let expected = [true, true, true, true, true, false, false];
     report(
         "glyph coverage (ttf-parser)",
@@ -121,9 +202,15 @@ fn heavy() {
     let pdfium = Pdfium::new(Pdfium::bind_to_library(lib).expect("load PDFium"));
     let font_bytes = std::fs::read(spikes_dir().join("assets/NotoSans-Regular.ttf")).unwrap();
     let mut doc = pdfium.create_new_pdf().unwrap();
-    let font = doc.fonts_mut().load_true_type_from_bytes(&font_bytes, true).unwrap();
+    let font = doc
+        .fonts_mut()
+        .load_true_type_from_bytes(&font_bytes, true)
+        .unwrap();
 
-    let mut page = doc.pages_mut().create_page_at_end(PdfPagePaperSize::a4()).unwrap();
+    let mut page = doc
+        .pages_mut()
+        .create_page_at_end(PdfPagePaperSize::a4())
+        .unwrap();
     page.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
     for i in 0..20_000 {
         let (x, y) = ((i % 140) as f32 * 4.0 + 10.0, (i / 140) as f32 * 5.5 + 10.0);
@@ -140,12 +227,21 @@ fn heavy() {
     page.regenerate_content().unwrap();
     drop(page);
 
-    let mut page = doc.pages_mut().create_page_at_end(PdfPagePaperSize::a4()).unwrap();
+    let mut page = doc
+        .pages_mut()
+        .create_page_at_end(PdfPagePaperSize::a4())
+        .unwrap();
     page.set_content_regeneration_strategy(PdfPageContentRegenerationStrategy::Manual);
     for i in 0..5_000 {
         let (x, y) = ((i % 50) as f32 * 11.0 + 10.0, (i / 50) as f32 * 8.0 + 10.0);
         page.objects_mut()
-            .create_text_object(PdfPoints::new(x), PdfPoints::new(y), "Ab", font, PdfPoints::new(6.0))
+            .create_text_object(
+                PdfPoints::new(x),
+                PdfPoints::new(y),
+                "Ab",
+                font,
+                PdfPoints::new(6.0),
+            )
             .unwrap();
     }
     page.regenerate_content().unwrap();
@@ -165,19 +261,29 @@ fn remove_from_third_party(pdfium: &Pdfium, path: &Path, out: &Path) {
     let doc = pdfium.load_pdf_from_file(path, None).unwrap();
     let mut page = doc.pages().get(0).unwrap();
     let before = page.text().unwrap().all();
-    let Some(index) = page
-        .objects()
-        .iter()
-        .position(|o| o.as_text_object().is_some_and(|t| t.text().trim().chars().count() >= 4))
-    else {
-        report("remove text object, third-party file", false, "no text object found on page 1");
+    let Some(index) = page.objects().iter().position(|o| {
+        o.as_text_object()
+            .is_some_and(|t| t.text().trim().chars().count() >= 4)
+    }) else {
+        report(
+            "remove text object, third-party file",
+            false,
+            "no text object found on page 1",
+        );
         return;
     };
-    let removed = page.objects().get(index).unwrap().as_text_object().unwrap().text();
+    let removed = page
+        .objects()
+        .get(index)
+        .unwrap()
+        .as_text_object()
+        .unwrap()
+        .text();
     page.objects_mut().remove_object_at_index(index).unwrap();
     page.regenerate_content().unwrap();
     drop(page);
-    doc.save_to_file(&out.join("third-party-edited.pdf")).unwrap();
+    doc.save_to_file(&out.join("third-party-edited.pdf"))
+        .unwrap();
 
     let after = page_text(pdfium, &out.join("third-party-edited.pdf"));
     let removed = removed.trim().to_string();
@@ -220,7 +326,9 @@ fn char_boxes(pdfium: &Pdfium, path: &Path) {
         if c.is_whitespace() || c.is_control() {
             continue;
         }
-        let Ok(rect) = ch.tight_bounds() else { continue };
+        let Ok(rect) = ch.tight_bounds() else {
+            continue;
+        };
         checked += 1;
         let x0 = (rect.left().value * scale) as usize;
         let x1 = ((rect.right().value * scale) as usize).min(w - 1);
@@ -236,6 +344,8 @@ fn char_boxes(pdfium: &Pdfium, path: &Path) {
     report(
         "character boxes match the render",
         checked > 0 && with_ink == checked,
-        format!("{with_ink}/{checked} glyph boxes contain ink; misses {misses:?}; page render at 200% took {render_ms:.1} ms"),
+        format!(
+            "{with_ink}/{checked} glyph boxes contain ink; misses {misses:?}; page render at 200% took {render_ms:.1} ms"
+        ),
     );
 }

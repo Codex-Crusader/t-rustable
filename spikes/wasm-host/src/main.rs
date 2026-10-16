@@ -65,9 +65,21 @@ struct ModSlot<'a> {
 }
 
 impl<'a> ModSlot<'a> {
-    fn load(engine: &'a Engine, linker: &'a Linker<State>, component: &'a Component) -> Result<Self> {
+    fn load(
+        engine: &'a Engine,
+        linker: &'a Linker<State>,
+        component: &'a Component,
+    ) -> Result<Self> {
         let (store, bindings) = instantiate(engine, linker, component)?;
-        Ok(Self { engine, linker, component, store, bindings, failures: 0, disabled: false })
+        Ok(Self {
+            engine,
+            linker,
+            component,
+            store,
+            bindings,
+            failures: 0,
+            disabled: false,
+        })
     }
 
     /// Runs one guest call with a fresh deadline. A failure poisons the instance, so reload it.
@@ -94,8 +106,15 @@ impl<'a> ModSlot<'a> {
     }
 }
 
-fn instantiate(engine: &Engine, linker: &Linker<State>, component: &Component) -> Result<(Store<State>, Spike)> {
-    let state = State { limits: StoreLimitsBuilder::new().memory_size(MEMORY_LIMIT).build(), logs: vec![] };
+fn instantiate(
+    engine: &Engine,
+    linker: &Linker<State>,
+    component: &Component,
+) -> Result<(Store<State>, Spike)> {
+    let state = State {
+        limits: StoreLimitsBuilder::new().memory_size(MEMORY_LIMIT).build(),
+        logs: vec![],
+    };
     let mut store = Store::new(engine, state);
     store.limiter(|s| &mut s.limits);
     store.epoch_deadline_trap();
@@ -148,7 +167,10 @@ fn main() -> Result<()> {
     report(
         "imports before instantiation (wasm32-unknown-unknown guest)",
         list == ["spike:api/host@0.1.0 (instance)"],
-        format!("{list:?}; compile {compile_ms:.1} ms for {} KB", bytes.len() / 1024),
+        format!(
+            "{list:?}; compile {compile_ms:.1} ms for {} KB",
+            bytes.len() / 1024
+        ),
     );
 
     let wasi = Component::new(&engine, std::fs::read(out_dir().join("guest-wasip2.wasm"))?)?;
@@ -182,7 +204,11 @@ fn main() -> Result<()> {
         slot.call(|b, s| b.call_run(s, i))?.unwrap();
     }
     let per_call_us = started.elapsed().as_secs_f64() * 1e6 / n as f64;
-    report("call cost", true, format!("{per_call_us:.2} us per call, including one host import call ({n} calls)"));
+    report(
+        "call cost",
+        true,
+        format!("{per_call_us:.2} us per call, including one host import call ({n} calls)"),
+    );
 
     // 3. Memory limit.
     let small = slot.call(|b, s| b.call_grow_memory(s, 16));
@@ -190,7 +216,10 @@ fn main() -> Result<()> {
     report(
         "memory limit (64 MB)",
         matches!(small, Ok(16)) && big.is_err(),
-        format!("16 MB: {small:?}; 128 MB: {}", big.err().map(|e| cause(&e)).unwrap_or_default()),
+        format!(
+            "16 MB: {small:?}; 128 MB: {}",
+            big.err().map(|e| cause(&e)).unwrap_or_default()
+        ),
     );
 
     // 4. Epoch interruption stops an endless loop.
@@ -200,7 +229,10 @@ fn main() -> Result<()> {
     report(
         "epoch interruption stops an endless loop",
         spin.is_err() && stop_ms < 500.0,
-        format!("deadline {CALL_DEADLINE_TICKS} ticks of 1 ms, stopped after {stop_ms:.1} ms: {}", spin.err().map(|e| cause(&e)).unwrap_or_default()),
+        format!(
+            "deadline {CALL_DEADLINE_TICKS} ticks of 1 ms, stopped after {stop_ms:.1} ms: {}",
+            spin.err().map(|e| cause(&e)).unwrap_or_default()
+        ),
     );
 
     // 5. The host survives a trap, and a fresh instance works.
@@ -210,7 +242,10 @@ fn main() -> Result<()> {
     report(
         "host survives a trap",
         trap.is_err() && matches!(after, Ok(Ok(51))),
-        format!("{}; next call on a fresh instance: {after:?}", trap.err().map(|e| cause(&e)).unwrap_or_default()),
+        format!(
+            "{}; next call on a fresh instance: {after:?}",
+            trap.err().map(|e| cause(&e)).unwrap_or_default()
+        ),
     );
 
     // 6. Three failures in a row disable the mod.
@@ -222,7 +257,11 @@ fn main() -> Result<()> {
     report(
         "failure counter disables the mod after 3 failures",
         slot.disabled && refused.is_err(),
-        format!("failures {}, next call: {}", slot.failures, refused.err().map(|e| e.to_string()).unwrap_or_default()),
+        format!(
+            "failures {}, next call: {}",
+            slot.failures,
+            refused.err().map(|e| e.to_string()).unwrap_or_default()
+        ),
     );
 
     stop.store(true, Ordering::Relaxed);
