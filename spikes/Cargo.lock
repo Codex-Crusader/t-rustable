@@ -3567,6 +3567,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "spike-iframe-isolation"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tauri",
+ "tauri-build",
+]
+
+[[package]]
 name = "spike-pdfium-edit"
 version = "0.0.0"
 dependencies = [
