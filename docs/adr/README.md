@@ -15,5 +15,5 @@ A locked decision in `CLAUDE.md` changes only through a new ADR that the owner a
 | 0007 | Permissions come from imports | Accepted |
 | 0008 | `.trex` project and journal format | Accepted |
 | 0009 | `.tmod` mod package format | Accepted |
-| 0010 | Licensing split | Accepted, with open questions |
+| 0010 | Licensing split | Accepted |
 | 0011 | Offline policy | Accepted |

@@ -8,6 +8,7 @@ accepted = [
     "Zlib",
     "MPL-2.0",
     "Unicode-3.0",
+    "Apache-2.0 WITH LLVM-exception",
 ]
 # Our own crates are not third party.
 private = { ignore = true }

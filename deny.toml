@@ -17,6 +17,8 @@ allow = [
     "ISC",
     "Zlib",
     "MPL-2.0",
+    # ADR 0010: wasmtime and Cranelift use the LLVM exception.
+    "Apache-2.0 WITH LLVM-exception",
     # ADR 0010: Unicode data license, used by unicode-ident.
     "Unicode-3.0",
 ]

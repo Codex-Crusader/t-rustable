@@ -27,4 +27,4 @@ Options:
 
 - Rust mods work well today. Before the docs promise JavaScript or Python mods, we must check the maturity of ComponentizeJS and componentize-py.
 - Each call between the host and a mod copies data. The API must avoid large data in frequent calls, for example on each pointer move.
-- The wasmtime license expression needs a decision (ADR 0010, open question 1).
+- wasmtime uses `Apache-2.0 WITH LLVM-exception`. ADR 0010 allows it.
