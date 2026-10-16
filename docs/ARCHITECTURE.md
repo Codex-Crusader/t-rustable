@@ -2,7 +2,7 @@
 
 This document describes how T-Rustable works. The locked decisions and their reasons are in `docs/adr/`.
 
-Status: design for Milestone 0. The spikes in Milestone 1 can change details. Items marked "Verify in M1" are not tested yet.
+Status: design after Milestone 1. The M1 spike results are in `docs/spikes/m1-report.md`. Items marked "Verify in M3" are not tested yet.
 
 ## 1. Components
 
@@ -63,10 +63,10 @@ Rules:
 
 1. The engine keeps one queue per priority. It always takes the next request from the highest non-empty queue.
 2. Before it starts a request, the engine checks the cancel flag. If the flag is set, it replies `Cancelled` and does no work.
-3. A long render uses PDFium progressive render. The pause callback reads the cancel flag, so a render can stop between steps. Verify in M1.
+3. A long render uses PDFium progressive render. The pause callback reads the cancel flag, so a render can stop between steps. M1 verified this: PDFium checks the callback about once per 100 page objects. One large object cannot be interrupted.
 4. Each request gets exactly one reply: `Ok(result)`, `Err(error)`, or `Cancelled`.
 5. A reply goes back on a channel that the sender gives with the request.
-6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic, so the engine also restarts PDFium before the next request. A restart closes the documents of all sessions, so the core reloads each open session from its journal.
+6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic. M1 found that PDFium cannot be loaded a second time in the same process, so the engine cannot restart it. The handling is a REVIEW 1 decision (see `docs/spikes/m1-report.md`, Summary).
 7. A native crash (for example a segfault in PDFium or qpdf) cannot be caught. It stops the app. On the next start, the journal recovers the sessions.
 
 The engine runs in the app process for v1. A later milestone can move it to a child process. Then the protocol goes over stdin and stdout pipes, never over a TCP socket.
@@ -181,9 +181,9 @@ The UI shows pages as tiles.
 - Priority: visible tiles are `Interactive`. Tiles near the viewport are `Background` prefetch. Tiles that leave the viewport are cancelled.
 - Cache: an LRU cache with a memory budget holds encoded tiles. The key is session, `PageId`, page revision, bucket, and tile position.
 - Invalidation: each transaction reports its affected `PageId`s. Only those pages get a new revision. Their old tiles leave the cache. Other tiles stay.
-- Encoding: PNG for now. Verify the encode time in M1. If it is too slow, use a faster PNG setting or a raw format.
+- Encoding: PNG with `Fast` compression. M1 measured less than 1 ms per tile.
 
-Targets: first page visible in less than 1 second, page render at 100 percent in less than 100 ms. Verify in M1.
+Targets: first page visible in less than 1 second, page render at 100 percent in less than 100 ms. M1 measured about 100 ms to the first page in the window and 3 to 14 ms per page.
 
 ## 11. GUI and core communication
 
@@ -195,13 +195,16 @@ Three channels connect the Svelte UI to the Rust core:
 | Tauri events | Core to UI | Notifications: `document-changed` with affected pages, progress, mod overlays, errors. |
 | Custom URI scheme | UI to core | Tile images. An `<img>` loads a URL like `trtile://localhost/<session>/<page-id>/<revision>/<bucket>/<x>_<y>.png`. The revision in the URL prevents stale tiles. |
 
-On Windows, WebView2 serves a custom scheme as `http://trtile.localhost/...`, not as `trtile://localhost/...`. The CSP `img-src` must allow the form of each platform. Verify in M1.
+Verified in M1 (`docs/spikes/m1-report.md`):
 
-Tauri 2 can send `invoke` as a fetch request to an IPC origin. The locked CSP has `connect-src 'none'`. Milestone 1 must find out whether this CSP blocks `invoke` or forces a slower fallback. If the CSP must change, that change needs a new ADR.
+- WebView2 on Windows loads a custom scheme only as `http://trtile.localhost/...`. WebKitGTK on Linux loads it only as `trtile://localhost/...`. The UI builds tile URLs per platform, and the CSP `img-src` lists both forms.
+- `invoke` works with `connect-src 'none'`. Tauri falls back to its postMessage channel, which is not slower.
+- A mod panel loaded from a custom scheme URL with `sandbox="allow-scripts"` cannot reach Tauri IPC or the host page. Never add `allow-same-origin`. The panel CSP must list the panel scheme in `script-src`, because `'self'` does not match it in a sandboxed panel on WebKitGTK.
+- The host accepts a panel message only when `event.source` is the `contentWindow` of that panel. The origin of a sandboxed panel is always `null`.
 
 Mod panels:
 
-- Each mod panel runs in an `<iframe sandbox="allow-scripts">` with a strict CSP. The iframe has no Tauri IPC. Verify in M1.
+- Each mod panel runs in an `<iframe sandbox="allow-scripts">` with a strict CSP. The iframe has no Tauri IPC (verified in M1).
 - The panel sends `postMessage` to the host page. The host page checks the source frame and forwards the message to the mod through `invoke`. The mod replies through the host.
 - Panel messages are JSON strings.
 

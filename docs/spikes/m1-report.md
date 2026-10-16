@@ -1,6 +1,14 @@
 # Milestone 1: risk spike report
 
-Status: in progress. Spikes are in `spikes/`. Run `bash spikes/fetch-deps.sh` first.
+Status: complete. Spikes are in `spikes/`. Run `bash spikes/fetch-deps.sh` first.
+
+## Summary
+
+All four spikes pass on Windows and on Linux (WSL2). No result breaks a locked decision. Three results need a decision from the owner before Milestone 3:
+
+1. pdfium-render can load PDFium only once per process. The engine therefore cannot restart PDFium after a Rust panic, as ARCHITECTURE section 2 says. Options: (a) after an engine panic, mark all sessions broken and ask the user to restart the app; the journal recovers the work. (b) Move the engine to a child process in M3 instead of a later milestone. Recommendation: (a) for v1, because the journal already covers recovery, and (b) stays on the roadmap.
+2. pdfium-render 0.9 hides the raw PDFium API. Progressive render needs it. Recommendation: use pdfium-render plus a small raw layer for the missing functions, and write our own binding only if the gaps grow.
+3. Rust mods must be built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI and the host refuses it. This shapes the mod template in M2.
 
 ## Test setup
 
@@ -120,6 +128,64 @@ On Linux, WSLg could not start a GPU driver (`EGL` and `ZINK` errors in the log)
 
 1. Both targets are met with a large margin on both platforms: first page about 20 ms in the bench and about 100 ms in the window, page render 3 to 14 ms.
 2. PNG is fast enough. Use `Fast` compression for tiles: it is 3 to 6 times faster than `Balanced`, and the tiles never leave the computer, so the larger size does not matter.
-3. The tile URL form is different per platform: `http://trtile.localhost/` on Windows and `trtile://localhost/` on Linux. The UI must build URLs with Tauri's `convertFileSrc` rule (or the same logic), and the CSP `img-src` must list both forms. ARCHITECTURE section 11 is updated in this direction.
+3. The tile URL form is different per platform: `http://trtile.localhost/` on Windows and `trtile://localhost/` on Linux. The UI must build URLs with the same rule as Tauri's `convertFileSrc`, and the CSP `img-src` must list both forms. ARCHITECTURE section 11 now records this.
 4. pdfium-render binds PDFium once per process (`PdfiumLibraryBindingsAlreadyInitialized` on a second bind). The engine can therefore not "restart PDFium" in the same process, as ARCHITECTURE section 2 says for a Rust panic. Options for M3: after a panic, mark all sessions broken and ask for an app restart, or move the engine to a child process earlier than planned. This needs a decision at REVIEW 1.
 5. A tile render that uses `set_origin` disables form field rendering in PDFium. Forms come in a later milestone, so this needs a decision then: flatten form fields for display, or render form fields in a separate pass.
+
+## Spike 2: mod panel isolation
+
+Run: `cargo run --release -p spike-iframe-isolation -- locked` and `-- ipc-allowed`. Results go to `spikes/out/iframe-<os>-<mode>.json`.
+
+Setup:
+
+- Host page CSP (`locked`): `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; frame-src trpanel: http://trpanel.localhost; object-src 'none'; base-uri 'none'; form-action 'none'`. The `ipc-allowed` mode changes only `connect-src` to `ipc: http://ipc.localhost`.
+- One capability with `core:default`, for the main window only. `withGlobalTauri` is off.
+- The app has a command `secret`. The Rust side counts every call. Any call from a panel is a leak, whatever the page reports.
+- Panels are served by the custom scheme `trpanel` with this CSP header: `default-src 'none'; script-src trpanel: http://trpanel.localhost; style-src (same); img-src (same) data:; connect-src 'none'; form-action 'none'`.
+- The panel script tries 20 escapes: the Tauri globals in its own window, in `parent`, and in `top`; `invoke('secret')` and `invoke('ping')`; direct IPC requests to `ipc://localhost` and `http://ipc.localhost`; `window.ipc.postMessage` and `chrome.webview.postMessage`; the parent DOM; `localStorage` and cookies; reading app files; an external fetch; `window.open`; navigation of the top window; a form submit; and a forged host message.
+
+### Result for the design (panel from a scheme URL, `sandbox="allow-scripts"`, panel CSP)
+
+| Attack | Windows | Linux (WSL2) |
+|---|---|---|
+| Calls to `secret` counted in Rust | 0 | 0 |
+| `invoke` from the panel (`secret` and `ping`) | No answer. Tauri drops IPC from the frame. | No Tauri globals in the frame. |
+| Direct fetch to the IPC origins | Blocked | Blocked |
+| `parent` and `top` Tauri globals, parent DOM | Blocked (cross-origin) | Blocked |
+| `localStorage`, cookies | Blocked (sandbox) | Blocked |
+| App files, external fetch | Blocked | Blocked |
+| `window.open`, top navigation, form submit | Blocked (sandbox) | Blocked |
+| Forged host message | Arrives with origin `null`, and `event.source` identifies the panel frame | Same |
+
+Same result in both CSP modes and in 5 repeated Windows runs.
+
+On Windows, Tauri injects its bridge script into every frame, so the panel sees `__TAURI_INTERNALS__`, `window.ipc`, and `chrome.webview`. It can send messages on them without an error, but Tauri never runs them: `ping` gets no answer and the `secret` counter stays at 0. On Linux, the panel has none of these objects.
+
+### Which setting blocks which attack
+
+| Variant | What leaked |
+|---|---|
+| srcdoc, `sandbox="allow-scripts"` | Nothing. (In the first of 6 Windows runs, its script did not run. This did not repeat.) |
+| Scheme URL, `sandbox="allow-scripts"`, no panel CSP | Nothing in this test. The sandbox and the cross-origin URL already block these attacks. Keep the panel CSP as a second layer. |
+| CONTROL: scheme URL, no `sandbox` attribute | Top navigation of the host page, form submit, `localStorage`. Still no IPC, because the frame is cross-origin. |
+| CONTROL: srcdoc with `allow-scripts allow-same-origin` | Full escape: the parent DOM, and `parent.__TAURI_INTERNALS__.invoke('secret')` works (2 calls counted). |
+
+### `invoke` under `connect-src 'none'`
+
+`invoke` works. The CSP blocks Tauri's fetch to the IPC origin (one `securitypolicyviolation` for `http://ipc.localhost/ping` on Windows and `ipc://localhost/ping` on Linux), and Tauri falls back to its postMessage channel.
+
+| | Windows | Linux (WSL2) |
+|---|---|---|
+| Mean `invoke` time, `locked` (fallback) | 0.18 ms | 0.28 ms |
+| Mean `invoke` time, `ipc-allowed` (fetch) | 0.95 ms | 0.42 ms |
+
+The fallback is not slower, so the locked CSP can stay. ADR 0011 does not change.
+
+### Findings for later milestones
+
+1. The design in the mod system rules holds: a panel loaded from a custom scheme URL with `sandbox="allow-scripts"` cannot reach Tauri IPC or the host page on either platform.
+2. Never add `allow-same-origin`, and never serve a panel from the app origin. Together they give a full escape.
+3. The `sandbox` attribute is required. Without it, a panel can navigate the host window.
+4. The panel CSP must list the panel scheme in `script-src`. `'self'` does not match the custom scheme in an opaque-origin document on WebKitGTK, and the panel script does not run.
+5. The host must accept panel messages only when `event.source` is that panel's `contentWindow`. The origin is always `null`, so it cannot identify the panel.
+6. On Windows, the Tauri bridge objects exist inside panel frames. They do nothing today, because Tauri checks where IPC comes from. Add a regression test in M4 that keeps the `secret` counter check, so that a Tauri update cannot change this without notice.
