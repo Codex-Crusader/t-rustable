@@ -1,0 +1,55 @@
+# cargo-deny configuration. See CLAUDE.md, "Licensing rules" and "Offline rules".
+
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+
+[licenses]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "MPL-2.0",
+    # ADR 0010: Unicode data license, used by unicode-ident.
+    "Unicode-3.0",
+]
+exceptions = [
+    { crate = "t-rustable-core", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "t-rustable-engine", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "t-rustable-plugin-host", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "t-rustable-app", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "t-rustable-cli", allow = ["PolyForm-Noncommercial-1.0.0"] },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+# Offline policy (ADR 0011): no HTTP clients, no network Tauri plugins.
+deny = [
+    { crate = "reqwest", reason = "offline policy: HTTP client" },
+    { crate = "ureq", reason = "offline policy: HTTP client" },
+    { crate = "hyper", reason = "offline policy: HTTP client" },
+    { crate = "hyper-util", reason = "offline policy: HTTP client" },
+    { crate = "surf", reason = "offline policy: HTTP client" },
+    { crate = "isahc", reason = "offline policy: HTTP client" },
+    { crate = "attohttpc", reason = "offline policy: HTTP client" },
+    { crate = "minreq", reason = "offline policy: HTTP client" },
+    { crate = "curl", reason = "offline policy: HTTP client" },
+    { crate = "curl-sys", reason = "offline policy: HTTP client" },
+    { crate = "tauri-plugin-http", reason = "offline policy: network plugin" },
+    { crate = "tauri-plugin-shell", reason = "offline policy: shell plugin" },
+    { crate = "tauri-plugin-updater", reason = "offline policy: no auto-updater" },
+    { crate = "wasmtime-wasi-http", reason = "offline policy: no network for mods" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
