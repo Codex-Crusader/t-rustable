@@ -17,7 +17,7 @@ T-Rustable opens files from people that the user may not trust. The app must sta
 
 | Threat | Entry point | Main defenses |
 |---|---|---|
-| Malicious PDF | The user opens a PDF. | PDFium and qpdf parse it on the engine thread. Encrypted files need the user's password. A parser crash stops the session, not the app (engine in a child process is a later milestone). Fuzz tests on input paths. No JavaScript in PDFs runs. |
+| Malicious PDF | The user opens a PDF. | PDFium and qpdf parse it on the engine thread. Encrypted files need the user's password. A Rust panic marks the session as broken. A native crash in PDFium or qpdf stops the app in v1, and the journal recovers the sessions on the next start. A later milestone moves the engine to a child process to contain both. Fuzz tests on input paths. The PDFium build has no JavaScript (V8) and no XFA support (ADR 0001). |
 | Malicious `.tmod` | The user installs a mod package. | Strict zip validation: path traversal, zip bomb limits, Windows reserved names, case collisions, manifest schema, allowed file types. The host reads component imports before it instantiates the mod. The permission screen shows those imports. |
 | Malicious mod code | An installed mod runs. | WASM sandbox. No WASI file, network, or socket access. Memory limit and epoch time limit per call. The host disables a mod after 3 failures in a row. Mods can only submit core commands, and the core validates each command. |
 | Malicious `.trex` | The user opens a project or the app recovers a crash journal. | Same zip validation as `.tmod`. Each command in `commands.jsonl` goes through `validate` before `apply`. Assets must match their SHA-256 name. |

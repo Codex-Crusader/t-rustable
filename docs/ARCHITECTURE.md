@@ -66,7 +66,8 @@ Rules:
 3. A long render uses PDFium progressive render. The pause callback reads the cancel flag, so a render can stop between steps. Verify in M1.
 4. Each request gets exactly one reply: `Ok(result)`, `Err(error)`, or `Cancelled`.
 5. A reply goes back on a channel that the sender gives with the request.
-6. A panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. The user can reopen the file from the last journal state.
+6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic, so the engine also restarts PDFium before the next request. A restart closes the documents of all sessions, so the core reloads each open session from its journal.
+7. A native crash (for example a segfault in PDFium or qpdf) cannot be caught. It stops the app. On the next start, the journal recovers the sessions.
 
 The engine runs in the app process for v1. A later milestone can move it to a child process. Then the protocol goes over stdin and stdout pipes, never over a TCP socket.
 
@@ -160,7 +161,7 @@ The app never changes a file unless the user saves.
 3. qpdf post-process: check the structure, repair if needed, linearize or compress if the user selected it.
 4. Write the result to a temporary file in the same folder as the target.
 5. Flush the temporary file to disk.
-6. Rename the temporary file to the target name. On the same volume, this is atomic on Linux and Windows.
+6. Rename the temporary file to the target name. On the same file system, this is atomic on Linux. On Windows, it depends on the API that the rename uses. Verify in M3.
 
 Special rules:
 
@@ -191,6 +192,10 @@ Three channels connect the Svelte UI to the Rust core:
 | Tauri `invoke` | UI to core | Requests: open, submit a transaction, run a mod action, save, undo. Each returns a result. |
 | Tauri events | Core to UI | Notifications: `document-changed` with affected pages, progress, mod overlays, errors. |
 | Custom URI scheme | UI to core | Tile images. An `<img>` loads a URL like `trtile://localhost/<session>/<page-id>/<revision>/<bucket>/<x>_<y>.png`. The revision in the URL prevents stale tiles. |
+
+On Windows, WebView2 serves a custom scheme as `http://trtile.localhost/...`, not as `trtile://localhost/...`. The CSP `img-src` must allow the form of each platform. Verify in M1.
+
+Tauri 2 can send `invoke` as a fetch request to an IPC origin. The locked CSP has `connect-src 'none'`. Milestone 1 must find out whether this CSP blocks `invoke` or forces a slower fallback. If the CSP must change, that change needs a new ADR.
 
 Mod panels:
 
@@ -227,7 +232,8 @@ The app has no network access (ADR 0011).
 |---|---|
 | A command is not valid | The transaction is rejected. The UI shows the error from `validate`. Nothing changes. |
 | `apply` fails | Rollback to the state before the transaction. The UI shows the error. |
-| The engine panics | The session is marked broken. The user can recover from the journal. Other sessions continue. |
+| The engine panics (Rust panic) | The session is marked broken. The engine restarts PDFium, and the core reloads all open sessions from their journals. |
+| PDFium or qpdf crashes (native crash) | The app stops. On the next start, the app offers to recover each session from its journal. |
 | A mod traps, uses too much memory, or runs too long | The host stops the call and shows an error. After 3 failures in a row, the host disables the mod. |
 | The save fails | The target file does not change, because the rename is the last step. The temporary file is deleted. |
 | The app crashes | On the next start, the app offers to recover each session from its journal. |

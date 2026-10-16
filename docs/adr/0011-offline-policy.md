@@ -22,4 +22,5 @@ The app has no network access.
 - Users update the app by hand.
 - For a bug report, the user must send the local log.
 - A dependency that pulls in an HTTP client is blocked, even if the app never uses it. Milestone 1 checks the real dependency trees of Tauri and wasmtime against the ban list.
+- Tauri 2 can send `invoke` as a fetch request to an IPC origin. Milestone 1 must verify that `invoke` works with `connect-src 'none'`. If it does not, the CSP change needs a new ADR.
 - The ban list is a list of names. It does not catch a new HTTP crate with a different name. Reviewers must check new dependencies.
