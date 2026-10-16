@@ -1,0 +1,16 @@
+[package]
+name = "t-rustable-cli"
+description = "Batch command line front end for T-Rustable."
+license = "PolyForm-Noncommercial-1.0.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+t-rustable-core.workspace = true

@@ -1,0 +1,13 @@
+[package]
+name = "t-rustable-engine"
+description = "PDFium and qpdf adapters and the engine actor."
+license = "PolyForm-Noncommercial-1.0.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
