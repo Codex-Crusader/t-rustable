@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Codex-Crusader/t-rustable/docs/mod-api/manifest.schema.json",
+  "title": "T-Rustable mod manifest",
+  "description": "manifest.json of a T-Rustable mod, API 0.1. The host also checks rules that this schema cannot express. See docs/mod-api/manifest.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "apiVersion", "author", "description", "permissions", "entry", "worlds"],
+  "properties": {
+    "id": {
+      "description": "Unique mod ID. Lowercase letters and digits, separated by single dots or dashes.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*([.-][a-z0-9]+)*$"
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" },
+    "version": {
+      "description": "Version of the mod: MAJOR.MINOR.PATCH with an optional pre-release.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "apiVersion": {
+      "description": "Version of the mod API: the first two numbers of t-rustable:api.",
+      "enum": ["0.1"]
+    },
+    "author": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1000, "pattern": "\\S" },
+    "license": {
+      "description": "SPDX license expression of the mod.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "permissions": {
+      "description": "Must match the imports of the component exactly. See docs/mod-api/permissions.md.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["document.read", "document.edit", "ui", "files.pick"] }
+    },
+    "entry": {
+      "description": "Relative path of the component (.wasm) in the package.",
+      "$ref": "#/$defs/packagePath",
+      "pattern": "\\.wasm$"
+    },
+    "worlds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["interactive", "batch"] }
+    },
+    "panels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "entry"],
+        "properties": {
+          "id": { "$ref": "#/$defs/localId" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "entry": { "$ref": "#/$defs/packagePath", "pattern": "\\.html$" }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "$ref": "#/$defs/localId" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "description": { "type": "string", "maxLength": 500 },
+          "shortcut": {
+            "description": "Suggested shortcut, for example Ctrl+Shift+R. The user decides.",
+            "type": "string",
+            "maxLength": 40
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "localId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "packagePath": {
+      "description": "Relative path with forward slashes. No leading slash, no backslash, no colon, no empty, '.', or '..' segments.",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(?!/)(?!.*[\\\\:])(?!.*(^|/)\\.{1,2}(/|$))(?!.*//).+$"
+    }
+  }
+}

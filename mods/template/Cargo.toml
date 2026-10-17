@@ -1,0 +1,22 @@
+[package]
+name = "rotate-page"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Inside the T-Rustable repository. For a copy outside the repository, use:
+# t-rustable-sdk = { git = "https://github.com/Codex-Crusader/t-rustable" }
+t-rustable-sdk = { path = "../../crates/t-rustable-sdk" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+# This mod is its own workspace, so you can copy the folder anywhere.
+[workspace]

@@ -1,0 +1,20 @@
+{
+  "id": "com.example.rotate-page",
+  "name": "Rotate page",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "Your name",
+  "description": "Rotates the current page by 90 degrees.",
+  "license": "MIT",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "rotate_page.wasm",
+  "worlds": ["interactive"],
+  "actions": [
+    {
+      "id": "rotate-page",
+      "title": "Rotate page",
+      "description": "Rotates the current page by 90 degrees clockwise.",
+      "shortcut": "Ctrl+Shift+R"
+    }
+  ]
+}
