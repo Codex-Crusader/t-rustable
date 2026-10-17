@@ -1,6 +1,7 @@
 //! The bundled fonts (Noto Sans, OFL). `add-text` can use only these families.
 
 use crate::error::{CoreError, Result, code};
+use skrifa::MetadataProvider;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ impl Fonts {
             let path = dir.join(name);
             let data =
                 std::fs::read(&path).map_err(|e| CoreError::io(&path.display().to_string(), e))?;
-            ttf_parser::Face::parse(&data, 0)
+            skrifa::FontRef::new(&data)
                 .map_err(|e| CoreError::internal(format!("{name} is not a valid font: {e}")))?;
             Ok(data.into())
         };
@@ -52,11 +53,12 @@ impl Fonts {
 
 /// Checks that the font has a glyph for each character of `text`.
 pub fn check_glyphs(font: &[u8], text: &str) -> Result<()> {
-    let face = ttf_parser::Face::parse(font, 0)
-        .map_err(|e| CoreError::invalid(format!("The font is not valid: {e}")))?;
+    let charmap = skrifa::FontRef::new(font)
+        .map_err(|e| CoreError::invalid(format!("The font is not valid: {e}")))?
+        .charmap();
     let mut missing: Vec<char> = Vec::new();
     for c in text.chars() {
-        if c != ' ' && face.glyph_index(c).is_none() && !missing.contains(&c) {
+        if c != ' ' && charmap.map(c).is_none() && !missing.contains(&c) {
             missing.push(c);
         }
     }
