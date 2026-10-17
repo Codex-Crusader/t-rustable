@@ -16,6 +16,8 @@ A spike on 2026-10-17 tested how wasmtime 49 links a component against a newer h
 | world with two imported interfaces, one used | | The component imports only the used interface. |
 | interface used only for a type | | The component imports that interface. |
 
+Rerun the evidence with `bash spikes/wit-compat/run.sh`.
+
 Thus a new case in any variant, or a new field in any record, breaks every existing mod. With a `command` variant, each new core command (for example `ReplaceText`, redaction, form commands) would need a new major API version, and the host would need to keep a copy of every old version.
 
 ## Decision

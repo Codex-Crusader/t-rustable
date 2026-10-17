@@ -1,0 +1,7 @@
+package test:api@1.1.0;
+interface edit {
+  variant command { a(u32), b(string), c(bool) }
+  submit: func(cmds: list<command>) -> u32;
+  extra: func() -> u32;
+}
+world host { import edit; }

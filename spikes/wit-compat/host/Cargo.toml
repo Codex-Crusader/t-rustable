@@ -1,0 +1,10 @@
+[package]
+name = "spike-wit-compat"
+description = "Evidence for ADR 0012: which WIT changes break old mods."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+wasmtime = "49"

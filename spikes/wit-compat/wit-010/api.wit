@@ -1,0 +1,16 @@
+package test:api@0.1.0;
+interface types {
+  record point { x: f64, y: f64 }
+}
+interface used {
+  use types.{point};
+  fa: func(p: point) -> f64;
+}
+interface unused {
+  fb: func() -> u32;
+}
+world guest {
+  import used;
+  import unused;
+  export run: func() -> f64;
+}
