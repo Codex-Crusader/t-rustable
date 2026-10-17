@@ -1,0 +1,10 @@
+[package]
+name = "spike-pdfium-ids"
+description = "M3 spike: object order after save and reload, and image transparency."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+libloading = "0.8"

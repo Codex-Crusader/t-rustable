@@ -1,0 +1,10 @@
+[package]
+name = "spike-qpdf-save"
+description = "M3 spike: qpdf post-process for the save pipeline."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+qpdf = { version = "0.3.7", features = ["vendored"] }
