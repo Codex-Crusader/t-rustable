@@ -6,7 +6,7 @@ exclude = ["spikes"]
 [workspace.package]
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.96"
 authors = ["Bhargavaram Krishnapur"]
 repository = "https://github.com/Codex-Crusader/t-rustable"
 publish = false
