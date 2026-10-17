@@ -37,6 +37,9 @@ exceptions = [
     { crate = "t-rustable-cli", allow = ["PolyForm-Noncommercial-1.0.0"] },
     { crate = "xtask", allow = ["PolyForm-Noncommercial-1.0.0"] },
     # The mods workspace (`cargo deny --manifest-path mods/Cargo.toml check --config deny.toml`).
+    { crate = "add-image", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "page-tools", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "shapes", allow = ["PolyForm-Noncommercial-1.0.0"] },
     { crate = "fixture-batch-only", allow = ["PolyForm-Noncommercial-1.0.0"] },
     { crate = "fixture-misbehave", allow = ["PolyForm-Noncommercial-1.0.0"] },
 ]

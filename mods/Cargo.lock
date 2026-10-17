@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "add-image"
+version = "0.1.0"
+dependencies = [
+ "t-rustable-sdk",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -111,6 +118,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "page-tools"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "t-rustable-sdk",
+]
+
+[[package]]
 name = "prettyplease"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -185,6 +201,13 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "shapes"
+version = "0.1.0"
+dependencies = [
+ "t-rustable-sdk",
 ]
 
 [[package]]

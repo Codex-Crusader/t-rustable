@@ -4,6 +4,9 @@
 [workspace]
 resolver = "3"
 members = [
+    "builtin/add-image",
+    "builtin/page-tools",
+    "builtin/shapes",
     "fixtures/batch-only",
     "fixtures/misbehave",
 ]

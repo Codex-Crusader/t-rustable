@@ -1,5 +1,5 @@
 //! Test services and helpers for the plugin host tests.
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -15,12 +15,13 @@ use t_rustable_plugin_host::api::ui::{
 use t_rustable_plugin_host::services::{FileFilter, FilePicker, MemorySettings, UiBridge};
 use t_rustable_plugin_host::{Limits, ModHost, Services, SessionRef};
 
-pub use t_rustable_engine::testing::{blank_pdf, engine};
+pub use t_rustable_engine::testing::{blank_pdf, engine, png};
 
 /// A UI that records what mods do. `confirm` waits, then says yes.
 pub struct TestUi {
     pub confirm_wait: Duration,
     pub active_page: Mutex<Option<PageId>>,
+    pub selected_pages: Mutex<Vec<PageId>>,
     pub overlays: Mutex<BTreeMap<String, Vec<OverlayShape>>>,
     pub notes: Mutex<Vec<(NotifyLevel, String)>>,
     pub actions: Mutex<Vec<(String, String)>>,
@@ -32,6 +33,7 @@ impl TestUi {
         Arc::new(Self {
             confirm_wait,
             active_page: Mutex::new(None),
+            selected_pages: Mutex::default(),
             overlays: Mutex::default(),
             notes: Mutex::default(),
             actions: Mutex::default(),
@@ -39,8 +41,14 @@ impl TestUi {
         })
     }
 
+    /// The active page. The selection becomes this page only.
     pub fn set_active_page(&self, page: PageId) {
         *self.active_page.lock().unwrap() = Some(page);
+        *self.selected_pages.lock().unwrap() = vec![page];
+    }
+
+    pub fn select_pages(&self, pages: &[PageId]) {
+        *self.selected_pages.lock().unwrap() = pages.to_vec();
     }
 
     pub fn overlay(&self, mod_id: &str) -> Vec<OverlayShape> {
@@ -97,10 +105,11 @@ impl UiBridge for TestUi {
     }
     fn context(&self, _: &str) -> UiContext {
         let active = *self.active_page.lock().unwrap();
+        let selected = self.selected_pages.lock().unwrap().clone();
         UiContext {
             document_open: true,
             active_page: active.map(api_page),
-            selected_pages: active.into_iter().map(api_page).collect(),
+            selected_pages: selected.into_iter().map(api_page).collect(),
             selected_objects: Vec::new(),
             zoom: 1.0,
         }

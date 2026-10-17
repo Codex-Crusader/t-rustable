@@ -1,0 +1,17 @@
+{
+  "id": "t-rustable.shapes",
+  "name": "Shapes",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable",
+  "description": "Draws rectangles, ellipses, and lines. Drag on a page. Shift keeps the shape square.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "shapes.wasm",
+  "worlds": ["interactive"],
+  "actions": [
+    { "id": "rectangle", "title": "Rectangle", "description": "Drag on a page to draw a rectangle." },
+    { "id": "ellipse", "title": "Ellipse", "description": "Drag on a page to draw an ellipse." },
+    { "id": "line", "title": "Line", "description": "Drag on a page to draw a line." }
+  ]
+}

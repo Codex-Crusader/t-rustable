@@ -516,21 +516,8 @@ impl ui::Host for HostState {
     }
 
     fn set_overlay(&mut self, shapes: Vec<types::OverlayShape>) {
-        let total = shapes.len();
-        let labelled: Vec<_> = shapes
-            .into_iter()
-            .filter(|s| !label(s).trim().is_empty())
-            .collect();
-        if labelled.len() < total {
-            let message = format!(
-                "{} overlay shapes have no label. The host does not show them.",
-                total - labelled.len()
-            );
-            self.services
-                .ui
-                .log(&self.mod_id, types::LogLevel::Warn, &message);
-        }
-        self.services.ui.set_overlay(&self.mod_id, labelled);
+        let shapes = labelled(&self.services, &self.mod_id, shapes);
+        self.services.ui.set_overlay(&self.mod_id, shapes);
     }
 
     fn clear_overlay(&mut self) {
@@ -575,6 +562,27 @@ impl ui::Host for HostState {
     fn context(&mut self) -> ui::UiContext {
         self.services.ui.context(&self.mod_id)
     }
+}
+
+/// Removes overlay shapes without a label (mod system rule 7), and logs a warning.
+pub(crate) fn labelled(
+    services: &crate::state::Services,
+    mod_id: &str,
+    shapes: Vec<types::OverlayShape>,
+) -> Vec<types::OverlayShape> {
+    let total = shapes.len();
+    let kept: Vec<_> = shapes
+        .into_iter()
+        .filter(|s| !label(s).trim().is_empty())
+        .collect();
+    if kept.len() < total {
+        let message = format!(
+            "{} overlay shapes have no label. The host does not show them.",
+            total - kept.len()
+        );
+        services.ui.log(mod_id, types::LogLevel::Warn, &message);
+    }
+    kept
 }
 
 fn label(s: &types::OverlayShape) -> &str {

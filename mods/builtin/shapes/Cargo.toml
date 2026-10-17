@@ -1,0 +1,16 @@
+[package]
+name = "shapes"
+description = "Built-in mod: draw rectangles, ellipses, and lines."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+t-rustable-sdk.workspace = true
+
+[lints]
+workspace = true

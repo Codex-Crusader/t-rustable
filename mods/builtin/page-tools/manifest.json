@@ -1,0 +1,20 @@
+{
+  "id": "t-rustable.page-tools",
+  "name": "Page tools",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable",
+  "description": "Rotates, deletes, moves, and inserts pages.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "page_tools.wasm",
+  "worlds": ["interactive", "batch"],
+  "actions": [
+    { "id": "rotate-left", "title": "Rotate left", "description": "Rotates the selected pages by 90 degrees counterclockwise.", "shortcut": "Ctrl+Shift+L" },
+    { "id": "rotate-right", "title": "Rotate right", "description": "Rotates the selected pages by 90 degrees clockwise.", "shortcut": "Ctrl+Shift+R" },
+    { "id": "delete", "title": "Delete pages", "description": "Deletes the selected pages." },
+    { "id": "move-up", "title": "Move pages up", "description": "Moves the selected pages one position toward the start." },
+    { "id": "move-down", "title": "Move pages down", "description": "Moves the selected pages one position toward the end." },
+    { "id": "insert-blank-after", "title": "Insert blank page", "description": "Inserts a blank page after the active page, with the same size." }
+  ]
+}

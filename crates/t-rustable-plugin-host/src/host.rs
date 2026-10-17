@@ -504,6 +504,11 @@ impl ModHost {
             Self::no_cancel(),
             |e, s, d| Ok(Self::tool(e, &owner)?.call_on_pointer(s, d.unwrap(), event)),
         )
+        .map(|mut out| {
+            let shapes = std::mem::take(&mut out.value.overlay);
+            out.value.overlay = crate::imports::labelled(&self.services, id, shapes);
+            out
+        })
     }
 
     pub fn on_key(

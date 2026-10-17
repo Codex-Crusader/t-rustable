@@ -1,0 +1,15 @@
+{
+  "id": "t-rustable.add-image",
+  "name": "Add image",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable",
+  "description": "Adds a PNG or JPEG image to a page. Click to add it at its own size, or drag to set the width.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "permissions": ["document.read", "document.edit", "ui", "files.pick"],
+  "entry": "add_image.wasm",
+  "worlds": ["interactive"],
+  "actions": [
+    { "id": "add-image", "title": "Add image", "description": "Opens a file dialog for a PNG or JPEG image." }
+  ]
+}
