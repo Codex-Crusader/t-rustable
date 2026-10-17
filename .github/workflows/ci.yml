@@ -71,6 +71,30 @@ jobs:
           node-version: lts/*
       - run: node --test .github/scripts/cla.test.js
 
+  mod-template:
+    name: Mod API and template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust and the wasm target
+        run: rustup toolchain install stable --profile minimal && rustup default stable && rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            .
+            mods/template
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: wasm-tools@1.262.0
+      - name: Parse the WIT package
+        run: wasm-tools component wit wit/ > /dev/null
+      - name: Build the template as a component
+        run: bash mods/template/build.sh
+      - name: Check its imports against its manifest
+        run: |
+          wasm-tools component wit mods/template/rotate_page.wasm > rotate_page.wit
+          cargo run -q -p t-rustable-sdk --example check-mod -- mods/template/manifest.json rotate_page.wit
+
   third-party-licenses:
     name: THIRD_PARTY_LICENSES
     runs-on: ubuntu-latest
