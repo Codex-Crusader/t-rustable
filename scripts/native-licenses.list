@@ -1,0 +1,25 @@
+# Notices of the native libraries inside PDFium and qpdf (ADR 0016).
+# Columns: source, file in that source, library name.
+# pdfium: the licenses/ folder of the pinned PDFium build (scripts/fetch-pdfium.sh).
+# qpdf-sys: the vendored sources of the qpdf-sys crate.
+pdfium  pdfium.txt                  PDFium
+pdfium  abseil.txt                  Abseil
+pdfium  agg23.txt                   Anti-Grain Geometry 2.3
+pdfium  dragonbox-Apache2-LLVM.txt  dragonbox (Apache-2.0 WITH LLVM-exception)
+pdfium  dragonbox-Boost.txt         dragonbox (BSL-1.0, not used)
+pdfium  fast_float.txt              fast_float
+pdfium  freetype.txt                FreeType
+pdfium  harfbuzz.txt                HarfBuzz
+pdfium  icu.txt                     ICU
+pdfium  lcms.txt                    Little CMS
+pdfium  libjpeg_turbo.ijg           libjpeg-turbo (IJG)
+pdfium  libjpeg_turbo.md            libjpeg-turbo
+pdfium  libopenjpeg.txt             OpenJPEG
+pdfium  libpng.txt                  libpng
+pdfium  llvm-libc.txt               LLVM libc
+pdfium  simdutf.txt                 simdutf
+pdfium  zlib.txt                    zlib (in PDFium)
+qpdf-sys  qpdf/LICENSE.txt          qpdf
+qpdf-sys  qpdf/NOTICE.md            qpdf (notice)
+qpdf-sys  jpeg/README               IJG libjpeg 9f (in qpdf)
+qpdf-sys  zlib/LICENSE              zlib (in qpdf)
