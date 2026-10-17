@@ -85,6 +85,10 @@ impl Assets {
     pub fn contains(&self, id: AssetId) -> bool {
         self.map.contains_key(&id)
     }
+
+    pub fn ids(&self) -> impl Iterator<Item = AssetId> + '_ {
+        self.map.keys().copied()
+    }
 }
 
 /// Image formats that the engine reads.
