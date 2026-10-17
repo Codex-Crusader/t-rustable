@@ -1,6 +1,7 @@
 //! Sessions, stable IDs, commands, and the journal.
 
 pub mod assets;
+pub mod command;
 pub mod coords;
 pub mod error;
 pub mod fonts;
