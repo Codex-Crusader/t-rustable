@@ -1,12 +1,14 @@
-//! Sessions, stable IDs, commands, and the journal. Work starts in Milestone 3.
+//! Sessions, stable IDs, commands, and the journal.
+
+pub mod assets;
+pub mod coords;
+pub mod error;
+pub mod fonts;
+pub mod ids;
+
+pub use assets::{AssetId, Assets};
+pub use error::{CoreError, Result};
+pub use ids::{ObjectId, PageId, Seed};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn version_is_set() {
-        assert!(!super::VERSION.is_empty());
-    }
-}
