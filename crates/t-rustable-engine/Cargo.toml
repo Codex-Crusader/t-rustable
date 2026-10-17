@@ -11,3 +11,16 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+# A request that panics on the engine thread. Only for tests of the restart path.
+test-hooks = []
+
+[dependencies]
+libloading = "0.9"
+png = "0.18"
+qpdf = { version = "0.3.7", features = ["vendored"] }
+serde = { version = "1", features = ["derive", "rc"] }
+
+[dev-dependencies]
+t-rustable-engine = { path = ".", features = ["test-hooks"] }
