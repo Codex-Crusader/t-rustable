@@ -66,7 +66,7 @@ Rules:
 3. A long render uses PDFium progressive render. The pause callback reads the cancel flag, so a render can stop between steps. M1 verified this: PDFium checks the callback about once per 100 page objects. One large object cannot be interrupted.
 4. Each request gets exactly one reply: `Ok(result)`, `Err(error)`, or `Cancelled`.
 5. A reply goes back on a channel that the sender gives with the request.
-6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic. M1 found that `pdfium-render` cannot load PDFium a second time in one process, but the raw C API can shut it down and start it again. The handling depends on the binding choice at REVIEW 1 (see `docs/spikes/m1-report.md`, Summary).
+6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic, so the engine shuts PDFium down and starts it again in the same process (our own binding, ADR 0013). A restart closes the documents of all sessions, so the core reloads each open session from its journal.
 7. A native crash (for example a segfault in PDFium or qpdf) cannot be caught. It stops the app. On the next start, the journal recovers the sessions.
 
 The engine runs in the app process for v1. A later milestone can move it to a child process. Then the protocol goes over stdin and stdout pipes, never over a TCP socket.
@@ -103,19 +103,22 @@ Each command type has three handlers in the command registry:
 Rules:
 
 - Only the core defines command types. Mods cannot add command types (ADR 0004).
+- Each command type is one method of the `transaction` resource in the mod API. A new command type is a new method, so old mods keep working (ADR 0012).
 - A command contains all of its inputs. An image command refers to an asset by its SHA-256 hash. It never refers to a file path.
 - `apply` never reads the clock, a random source, or the file system.
 - Each command type has unit tests for all three handlers.
 
 ## 6. Transactions
 
-A transaction is a list of commands with a label. The user, a built-in mod, or an external mod submits it.
+A transaction is a list of commands with a label. The user, a built-in mod, or an external mod makes it.
+
+Mods make a transaction through the `edit` interface (ADR 0012): `edit.begin(doc, label)` returns a `transaction` resource with one method per core command, and `transaction.commit(tx)` submits it. The GUI and the CLI use the same core functions directly.
 
 Lifecycle:
 
-1. The submitter sends `submit(doc, label, commands)`.
-2. The core runs `validate` for each command in order, against the state after the commands before it.
-3. If one command is not valid, the core rejects the full transaction. Nothing changes.
+1. The submitter opens a transaction and adds commands. The core runs `validate` for each command when it is added, against the state after the commands before it. An invalid command returns an error at once.
+2. The submitter commits the transaction.
+3. The core runs `validate` again for all commands. If one command is not valid, the core rejects the full transaction, with the index of that command. Nothing changes.
 4. The core runs `apply` for each command. If one `apply` fails, the core rolls back to the state before the transaction. Rollback uses the undo mechanism (section 7).
 5. The core appends the transaction to the journal (section 8).
 6. The core sends a `document-changed` event with the affected `PageId`s.
@@ -237,7 +240,7 @@ The app has no network access (ADR 0011).
 |---|---|
 | A command is not valid | The transaction is rejected. The UI shows the error from `validate`. Nothing changes. |
 | `apply` fails | Rollback to the state before the transaction. The UI shows the error. |
-| The engine panics (Rust panic) | The session is marked broken. The restart of PDFium depends on the binding choice at REVIEW 1: a restart in the same process and a reload of all sessions from their journals, or an app restart. |
+| The engine panics (Rust panic) | The session is marked broken. The engine restarts PDFium in the same process, and the core reloads all open sessions from their journals (ADR 0013). |
 | PDFium or qpdf crashes (native crash) | The app stops. On the next start, the app offers to recover each session from its journal. |
 | A mod traps, uses too much memory, or runs too long | The host stops the call and shows an error. After 3 failures in a row, the host disables the mod. |
 | The save fails | The target file does not change, because the rename is the last step. The temporary file is deleted. |

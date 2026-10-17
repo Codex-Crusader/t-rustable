@@ -17,3 +17,5 @@ Each accepted ADR is a locked decision. It changes only through a new ADR that t
 | 0009 | `.tmod` mod package format | Accepted |
 | 0010 | Licensing split | Accepted |
 | 0011 | Offline policy | Accepted |
+| 0012 | Mod API evolution and the transaction resource | Accepted |
+| 0013 | PDFium binding: our own thin binding over the C API | Accepted |

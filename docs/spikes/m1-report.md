@@ -6,7 +6,7 @@ Status: complete. Spikes are in `spikes/`. Run `bash spikes/fetch-deps.sh` first
 
 The four spikes pass on Windows. On Linux (WSL2), spikes 2, 3, and 4 pass, and spike 1 passes for render speed and tile delivery. Scrolling smoothness on Linux is not measured, because WSLg had no GPU (see spike 1). No result breaks a locked decision.
 
-Decisions for the owner before Milestone 3:
+Decisions for the owner before Milestone 3 (both decided on 2026-10-17):
 
 1. PDFium binding and engine restart (one decision). ADR 0001 says M1 selects the binding.
    - `pdfium-render` 0.9 keeps its raw API and its document and page handles private. A raw call such as `FPDF_RenderPageBitmap_Start` can therefore not reach a document that `pdfium-render` holds. Progressive render and cancel of the edited document need that call.
@@ -15,7 +15,8 @@ Decisions for the owner before Milestone 3:
    - Option A: our own thin binding over the C API (`libloading` and the functions that we use). It gives progressive render, cancel, and a restart after a Rust panic. It costs more code in the engine crate.
    - Option B: `pdfium-render` for everything. No progressive render or cancel for edited documents, and after an engine panic the user must restart the app (the journal recovers the work).
    - Recommendation: option A. Progressive render and cancel are part of the locked engine design (ADR 0001 and ARCHITECTURE section 2).
-2. Rust mods are built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI, and the host refuses it. This shapes the mod template and the guide in M2.
+   - Decided: option A (ADR 0013).
+2. Rust mods are built for `wasm32-unknown-unknown` and wrapped with `wasm-tools component new`. A `wasm32-wasip2` build imports WASI, and the host refuses it. This shapes the mod template and the guide in M2. Decided: the M2 template uses this build.
 
 Not measured in M1:
 
