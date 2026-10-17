@@ -1,6 +1,6 @@
 # 0010. Licensing split
 
-Status: Accepted (2026-10-16)
+Status: Accepted (2026-10-16). Amended by ADR 0016 (native libraries inside PDFium and qpdf).
 
 ## Context
 
@@ -31,7 +31,7 @@ The owner wants the app to be free for non-commercial use, and wants to keep the
 ## Consequences
 
 - Mods can use any license, because the API and the SDK are MIT.
-- PDFium and qpdf binaries are not Rust crates. Their licenses need a manual entry in `THIRD_PARTY_LICENSES` (ADR 0001).
+- PDFium and qpdf binaries are not Rust crates. Their licenses need a manual entry in `THIRD_PARTY_LICENSES` (ADR 0001). ADR 0016 lists the licenses of the native libraries inside them.
 - `CLA.md` is adapted from the Harmony CLA, so it is CC-BY-3.0.
 
 ## Resolved questions (2026-10-16)

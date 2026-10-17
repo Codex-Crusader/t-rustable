@@ -19,3 +19,6 @@ Each accepted ADR is a locked decision. It changes only through a new ADR that t
 | 0011 | Offline policy | Accepted |
 | 0012 | Mod API evolution and the transaction resource | Accepted |
 | 0013 | PDFium binding: our own thin binding over the C API | Accepted |
+| 0014 | qpdf binding: the `qpdf` crate, built from source | Accepted |
+| 0015 | Engine operations as data, and a check after each page rewrite | Accepted |
+| 0016 | Licenses of native libraries inside PDFium and qpdf | Accepted (amends 0010) |

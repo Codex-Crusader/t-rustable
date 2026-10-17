@@ -36,6 +36,14 @@ T-Rustable is source-available and free for non-commercial use.
 
 Mods that you write against the MIT parts can use any license that you choose.
 
+## Credits
+
+T-Rustable uses PDFium and qpdf. They contain other libraries, which are listed in `THIRD_PARTY_LICENSES` (ADR 0016).
+
+Portions of this software are copyright The FreeType Project (www.freetype.org). All rights reserved.
+
+This software is based in part on the work of the Independent JPEG Group.
+
 ## More information
 
 - `docs/ARCHITECTURE.md`: how the app works.

@@ -23,7 +23,7 @@ Options:
 ## Consequences
 
 - The app ships PDFium and qpdf binaries for Linux and Windows. Their licenses, and the licenses of the libraries inside them (for example FreeType and libjpeg-turbo), must go into `THIRD_PARTY_LICENSES`. `cargo-about` does not see them, so this needs a manual list.
-- PDFium binding: our own thin binding over the C API (ADR 0013, after the M1 spikes). The qpdf binding is selected when M3 needs it.
+- PDFium binding: our own thin binding over the C API (ADR 0013, after the M1 spikes). qpdf binding: the `qpdf` crate, built from source (ADR 0014).
 - Milestone 1 must verify the PDFium edit APIs: remove and add text objects, embedded fonts, character positions, and progressive render with a pause callback.
 - Use a PDFium build without V8 (JavaScript) and without XFA. JavaScript in a PDF must never run. Prebuilt PDFium is often available with and without V8, so Milestone 1 must check which build the selected binding loads.
 - A native PDFium crash stops the app process in v1. A later milestone moves the engine to a child process.
