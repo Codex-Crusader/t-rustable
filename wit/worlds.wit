@@ -48,6 +48,8 @@ interface tool {
     run-action: func(document: option<borrow<doc>>, action-id: string, args: string) -> result<_, api-error>;
     on-pointer: func(document: borrow<doc>, event: pointer-event) -> pointer-result;
     on-key: func(document: borrow<doc>, event: key-event) -> key-result;
+    /// Text that the user typed, after input method composition. Use it for text entry, not `on-key`.
+    on-text-input: func(document: borrow<doc>, text: string);
     /// `message` is a JSON string from the panel.
     on-panel-message: func(panel-id: string, message: string) -> result<_, api-error>;
     on-document-changed: func(document: borrow<doc>, change: document-change);

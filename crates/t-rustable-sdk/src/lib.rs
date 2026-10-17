@@ -90,6 +90,11 @@ mod guest {
             KeyResult { handled: false }
         }
 
+        /// Text that the user typed, after input method composition, while this tool is active.
+        fn on_text_input(document: &Doc, text: String) {
+            let _ = (document, text);
+        }
+
         /// JSON message from a panel of this mod.
         fn on_panel_message(panel_id: String, message: String) -> Result<(), ApiError> {
             let _ = (panel_id, message);
@@ -136,6 +141,9 @@ macro_rules! export_interactive {
                     event: $crate::exports::tool::PointerEvent,
                 ) -> $crate::exports::tool::PointerResult {
                     <$ty as $crate::Tool>::on_pointer(document, event)
+                }
+                fn on_text_input(document: &$crate::document::Doc, text: ::std::string::String) {
+                    <$ty as $crate::Tool>::on_text_input(document, text)
                 }
                 fn on_key(
                     document: &$crate::document::Doc,
