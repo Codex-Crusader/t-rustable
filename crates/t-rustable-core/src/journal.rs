@@ -292,6 +292,7 @@ mod tests {
                 b: 0,
                 a: 255,
             },
+            turns: None,
         };
         let with_asset = Entry::Commit {
             id: 1,

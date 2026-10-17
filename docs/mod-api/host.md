@@ -1,6 +1,6 @@
 # host
 
-Interface `t-rustable:api/host@0.1.0`. No permission.
+Interface `t-rustable:api/host@0.1.1`. No permission.
 
 | Function | Notes |
 |---|---|

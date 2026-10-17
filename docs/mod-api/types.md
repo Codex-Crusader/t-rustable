@@ -1,6 +1,6 @@
 # types
 
-Interface `t-rustable:api/types@0.1.0`. Shared types. No permission.
+Interface `t-rustable:api/types@0.1.1`. Shared types. No permission.
 
 All types are frozen within 0.1.x: no new fields and no new cases (ADR 0012).
 
@@ -22,7 +22,7 @@ In Rust, the SDK gives both ID types `Display`, `FromStr` (32 lowercase hex digi
 | `rect` | `left`, `bottom`, `right`, `top` | PDF points. The SDK adds `from_corners`, `width`, `height`, `contains`. |
 | `color` | `r`, `g`, `b`, `a` | sRGB, 0 to 255. `a` 255 is opaque. |
 | `stroke` | `color`, `width`, `dash` | `dash` lists on and off lengths in points. Empty is a solid line. |
-| `text-style` | `font-family`, `size`, `color`, `bold`, `italic` | `size` in points |
+| `text-style` | `font-family`, `size`, `color`, `bold`, `italic` | `size` in points, up to 1000. `font-family`: `Noto Sans` or `sans-serif` (the bundled Noto Sans). Another family gives `invalid-argument`. |
 | `log-level` | `debug`, `info`, `warn`, `error` | |
 
 All coordinates are in the user space of the page, before page rotation. The origin is where the PDF puts it. On many pages it is the bottom left of the visible area, but not on all: the crop box can start at any point. Use `page-info.crop-box` to place content.

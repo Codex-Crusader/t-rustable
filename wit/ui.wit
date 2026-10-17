@@ -1,4 +1,4 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Actions, toolbar, panels, overlays, and messages. Permission: ui.
 interface ui {

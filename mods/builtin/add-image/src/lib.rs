@@ -1,8 +1,8 @@
 //! Built-in mod: adds a PNG or JPEG image to a page.
 //!
 //! The action opens a file dialog. Then a preview follows the pointer. A click adds the
-//! image at its own size (96 pixels per inch), and a drag sets the width. The image
-//! keeps its aspect ratio. Escape cancels.
+//! image at its own size (96 pixels per inch), and a drag sets the size. The image
+//! keeps its aspect ratio and reads upright on a rotated page. Escape cancels.
 
 use std::cell::RefCell;
 use t_rustable_sdk::document::Doc;
@@ -56,8 +56,18 @@ fn pixel_size(data: &[u8]) -> Option<(u32, u32)> {
     None
 }
 
+/// The image size in page coordinates. New images read upright, so on a page that
+/// turns by 90 or 270 degrees, the image width runs along the page height.
+fn oriented(document: &Doc, page: PageId, (w, h): (f64, f64)) -> (f64, f64) {
+    match document.page_info(page) {
+        Ok(info) if info.rotation % 180 == 90 => (h, w),
+        _ => (w, h),
+    }
+}
+
 /// The size at 96 pixels per inch, made smaller to fit on the page if necessary.
 fn natural_size(document: &Doc, page: PageId, size: (f64, f64)) -> (f64, f64) {
+    let size = oriented(document, page, size);
     let Ok(info) = document.page_info(page) else {
         return size;
     };
@@ -170,7 +180,7 @@ impl Tool for AddImage {
                     let bounds = if distance < MIN_DRAG {
                         centered(start, natural_size(document, page, p.size))
                     } else {
-                        dragged(start, event.at, p.size)
+                        dragged(start, event.at, oriented(document, page, p.size))
                     };
                     preview(p, page, bounds)
                 }
@@ -183,7 +193,7 @@ impl Tool for AddImage {
                     let bounds = if (at.x - start.x).hypot(at.y - start.y) < MIN_DRAG {
                         centered(start, natural_size(document, page, p.size))
                     } else {
-                        dragged(start, at, p.size)
+                        dragged(start, at, oriented(document, page, p.size))
                     };
                     let data = std::mem::take(&mut p.data);
                     *cell = None;

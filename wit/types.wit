@@ -1,4 +1,4 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Shared types. Every type is frozen within 0.1.x: never add a field or a case.
 /// Coordinates are PDF points (1/72 inch) in the user space of the page, before page rotation.
@@ -75,6 +75,8 @@ interface types {
         label: string,
     }
 
+    /// Preview of text. `at` is the start of the baseline, and the host draws the text
+    /// upright for the reader, as `edit.add-text` adds it.
     record overlay-text {
         page: page-id,
         at: point,
@@ -83,7 +85,8 @@ interface types {
         label: string,
     }
 
-    /// Preview of an image. `image` comes from `ui.register-overlay-image`.
+    /// Preview of an image. `image` comes from `ui.register-overlay-image`. The host draws it
+    /// upright for the reader, as `edit.add-image` adds it.
     record overlay-image {
         page: page-id,
         bounds: rect,
@@ -92,6 +95,7 @@ interface types {
         label: string,
     }
 
+    /// A text caret. It goes from `at` up by `height` points, as the reader sees the page.
     record overlay-caret {
         page: page-id,
         at: point,

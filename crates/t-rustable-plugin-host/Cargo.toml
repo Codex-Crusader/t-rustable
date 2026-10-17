@@ -22,3 +22,4 @@ wasmtime = { version = "49", default-features = false, features = ["runtime", "c
 [dev-dependencies]
 t-rustable-engine = { workspace = true, features = ["test-hooks"] }
 tempfile = "3"
+wat = "1"

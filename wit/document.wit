@@ -1,8 +1,8 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Read access to a document. Permission: document.read.
 interface document {
-    use types.{page-id, object-id, point, rect, api-error};
+    use types.{page-id, object-id, point, rect, text-style, api-error};
 
     record page-info {
         id: page-id,
@@ -87,4 +87,11 @@ interface document {
         /// Error `no-display` in the batch world.
         from-display: func(page: page-id, p: display-point) -> result<point, api-error>;
     }
+
+    /// Width of `text` in points, in the font of `style`, as `edit` adds it: the sum of
+    /// the glyph advances, without kerning. Use it to place a caret or to fit text.
+    /// Error `missing-glyph` when the font cannot show a character, and
+    /// `invalid-argument` for an unknown font family or a bad size.
+    @since(version = 0.1.1)
+    measure-text: func(text: string, style: text-style) -> result<f64, api-error>;
 }

@@ -74,6 +74,7 @@ fn text_op(page: usize, x: f64, y: f64, text: &str) -> EditOp {
             b: 0,
             a: 255,
         },
+        quarter_turns: 0,
     }
 }
 
@@ -257,6 +258,42 @@ fn add_text_extracts_and_survives_save() {
 }
 
 #[test]
+fn quarter_turns_turn_text_and_images() {
+    let e = engine();
+    open(&e, 1, blank_pdf(&[(400.0, 400.0)]));
+    let mut text = text_op(0, 200.0, 100.0, "Turned text");
+    if let EditOp::AddText { quarter_turns, .. } = &mut text {
+        *quarter_turns = 1;
+    }
+    let image = |turns: u8| EditOp::AddImage {
+        page: 0,
+        bounds: Rect {
+            left: 10.0,
+            bottom: 300.0,
+            right: 90.0,
+            top: 340.0,
+        },
+        data: ImageData::Png(png(20, 10).into()),
+        quarter_turns: turns,
+    };
+    apply(&e, 1, vec![text, image(1)]).unwrap();
+    let found = objects(&e, 1, 0);
+    // The text runs up from its origin, so its box is taller than wide, left of x = 200.
+    let t = found[0].bounds;
+    assert!(t.height() > 3.0 * t.width(), "{t:?}");
+    assert!(t.right <= 200.5 && t.bottom >= 99.5, "{t:?}");
+    // The turned image fills the same bounds.
+    let b = found[1].bounds;
+    assert_eq!(
+        [b.left, b.bottom, b.right, b.top],
+        [10.0, 300.0, 90.0, 340.0]
+    );
+    assert_eq!(page_text(&e, 1, 0).trim(), "Turned text");
+    let bad = apply(&e, 1, vec![image(4)]).unwrap_err();
+    assert!(format!("{bad:?}").contains("InvalidArgument"), "{bad:?}");
+}
+
+#[test]
 fn shapes_images_and_remove() {
     let e = engine();
     open(&e, 1, blank_pdf(&[(200.0, 200.0)]));
@@ -280,6 +317,7 @@ fn shapes_images_and_remove() {
                 top: 200.0,
             },
             data: ImageData::Png(png(20, 20).into()),
+            quarter_turns: 0,
         },
         text_op(0, 10.0, 150.0, "Hi"),
     ];
@@ -420,6 +458,7 @@ fn bad_image_is_refused() {
                 top: 10.0,
             },
             data: ImageData::Png(Arc::from(&b"not a png"[..])),
+            quarter_turns: 0,
         }],
     );
     match r {

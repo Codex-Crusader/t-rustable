@@ -413,3 +413,144 @@ fn the_journal_replays_without_the_mods() {
     assert_eq!(recovered.page_ids()[0], b);
     recovered.close().unwrap();
 }
+
+const ADD_TEXT: &str = "t-rustable.add-text";
+
+fn key(name: &str) -> KeyEvent {
+    KeyEvent {
+        key: name.into(),
+        code: name.into(),
+        ..escape()
+    }
+}
+
+fn caret_and_text(ui: &TestUi) -> (Point, Option<String>) {
+    let overlay = ui.overlay(ADD_TEXT);
+    let caret = overlay
+        .iter()
+        .find_map(|s| match s {
+            OverlayShape::Caret(c) => Some(c.at),
+            _ => None,
+        })
+        .expect("a caret");
+    let text = overlay.iter().find_map(|s| match s {
+        OverlayShape::Text(t) => Some(t.text.clone()),
+        _ => None,
+    });
+    (caret, text)
+}
+
+fn width(text: &str) -> f64 {
+    let face = fonts().select("Noto Sans", false, false).unwrap();
+    t_rustable_core::fonts::text_width(&face, text, 14.0).unwrap()
+}
+
+#[test]
+fn add_text_types_on_the_page() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let doc = session(&e, dir.path(), 1);
+    let page = pages(&doc)[0];
+    let ui = TestUi::new(Duration::ZERO);
+    let mut host = host(ui.clone(), Limits::default());
+    host.load_dir(&mod_dir(ADD_TEXT)).unwrap();
+
+    host.on_pointer(
+        ADD_TEXT,
+        &doc,
+        pointer(PointerKind::Down, page, 100.0, 700.0, false),
+    )
+    .unwrap();
+    let (caret, text) = caret_and_text(&ui);
+    assert_eq!((caret.x, text), (100.0, None));
+    host.on_text_input(ADD_TEXT, &doc, "Hello\n!").unwrap();
+    let (caret, text) = caret_and_text(&ui);
+    assert_eq!(text.as_deref(), Some("Hello!"), "the line break is gone");
+    assert!((caret.x - (100.0 + width("Hello!"))).abs() < 1e-9);
+    assert!(
+        host.on_key(ADD_TEXT, &doc, key("Backspace"))
+            .unwrap()
+            .value
+            .handled
+    );
+    // A character that the font cannot show is refused with a message.
+    host.on_text_input(ADD_TEXT, &doc, "\u{65E5}").unwrap();
+    assert_eq!(caret_and_text(&ui).1.as_deref(), Some("Hello"));
+    assert_eq!(ui.notes.lock().unwrap().len(), 1);
+    let enter = host.on_key(ADD_TEXT, &doc, key("Enter")).unwrap();
+    assert_eq!(enter.changes.len(), 1);
+    assert!(ui.overlay(ADD_TEXT).is_empty());
+
+    // A click at another place adds the current text. Escape cancels.
+    host.on_pointer(
+        ADD_TEXT,
+        &doc,
+        pointer(PointerKind::Down, page, 100.0, 600.0, false),
+    )
+    .unwrap();
+    host.on_text_input(ADD_TEXT, &doc, "Second").unwrap();
+    host.on_pointer(
+        ADD_TEXT,
+        &doc,
+        pointer(PointerKind::Down, page, 100.0, 500.0, false),
+    )
+    .unwrap();
+    host.on_text_input(ADD_TEXT, &doc, "Cancelled").unwrap();
+    assert!(host.on_key(ADD_TEXT, &doc, escape()).unwrap().value.handled);
+    assert!(
+        !host
+            .on_key(ADD_TEXT, &doc, key("Enter"))
+            .unwrap()
+            .value
+            .handled
+    );
+
+    // The action adds text without a pointer.
+    ui.set_active_page(page);
+    let args = r#"{"x": 100, "y": 400, "text": "From the keyboard", "size": 20}"#;
+    host.run_action(ADD_TEXT, Some(&doc), "add-text", args, no_cancel())
+        .unwrap()
+        .value
+        .unwrap();
+
+    let text = doc.lock().unwrap().page_text(page).unwrap();
+    for want in ["Hello", "Second", "From the keyboard"] {
+        assert!(text.contains(want), "{text:?}");
+    }
+    assert!(
+        !text.contains("Cancelled") && !text.contains("Hello!"),
+        "{text:?}"
+    );
+}
+
+#[test]
+fn add_text_follows_a_rotated_page() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let doc = session(&e, dir.path(), 1);
+    let page = pages(&doc)[0];
+    let ui = TestUi::new(Duration::ZERO);
+    let mut host = host(ui.clone(), Limits::default());
+    host.load_dir(&mod_dir(PAGE_TOOLS)).unwrap();
+    host.load_dir(&mod_dir(ADD_TEXT)).unwrap();
+    ui.set_active_page(page);
+    action(&mut host, PAGE_TOOLS, &doc, "rotate-right");
+
+    host.on_pointer(
+        ADD_TEXT,
+        &doc,
+        pointer(PointerKind::Down, page, 300.0, 100.0, false),
+    )
+    .unwrap();
+    host.on_text_input(ADD_TEXT, &doc, "Upright").unwrap();
+    // The baseline runs up the page, so the caret moves in y.
+    let (caret, _) = caret_and_text(&ui);
+    assert!(
+        (caret.y - (100.0 + width("Upright"))).abs() < 1e-9,
+        "{caret:?}"
+    );
+    host.on_key(ADD_TEXT, &doc, key("Enter")).unwrap();
+    let found = objects(&doc, page);
+    let [left, bottom, right, top] = found[0].1;
+    assert!(top - bottom > 2.0 * (right - left), "{:?}", found[0].1);
+}

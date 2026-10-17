@@ -1,4 +1,4 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Log, progress, cancel, and per-mod settings. No permission needed.
 interface host {

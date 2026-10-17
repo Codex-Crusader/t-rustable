@@ -601,3 +601,80 @@ impl ModHost {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::{MemorySettings, NoFiles};
+
+    struct NoUi;
+
+    impl crate::services::UiBridge for NoUi {
+        fn register_action(&self, _: &str, _: crate::api::ui::Action) -> Result<(), String> {
+            Ok(())
+        }
+        fn register_toolbar_item(
+            &self,
+            _: &str,
+            _: crate::api::ui::ToolbarItem,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+        fn register_panel(&self, _: &str, _: crate::api::ui::Panel) -> Result<(), String> {
+            Ok(())
+        }
+        fn suggest_shortcut(&self, _: &str, _: crate::api::ui::Shortcut) -> Result<(), String> {
+            Ok(())
+        }
+        fn set_overlay(&self, _: &str, _: Vec<crate::api::types::OverlayShape>) {}
+        fn clear_overlay(&self, _: &str) {}
+        fn register_overlay_image(&self, _: &str, _: Vec<u8>) -> Result<u32, String> {
+            Ok(1)
+        }
+        fn post_to_panel(&self, _: &str, _: &str, _: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn notify(&self, _: &str, _: crate::api::ui::NotifyLevel, _: &str) {}
+        fn confirm(&self, _: &str, _: &str, _: &str) -> bool {
+            false
+        }
+        fn context(&self, _: &str) -> crate::api::ui::UiContext {
+            unimplemented!()
+        }
+        fn display_scale(&self, _: crate::api::types::PageId) -> Option<f64> {
+            None
+        }
+        fn log(&self, _: &str, _: crate::api::types::LogLevel, _: &str) {}
+        fn progress(&self, _: &str, _: f32, _: &str) {}
+    }
+
+    fn host() -> ModHost {
+        let fonts = t_rustable_core::fonts::Fonts::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fonts"),
+        )
+        .unwrap();
+        let services = Services {
+            ui: Arc::new(NoUi),
+            files: Arc::new(NoFiles),
+            settings: Arc::new(MemorySettings::default()),
+            fonts: Arc::new(fonts),
+        };
+        ModHost::new(services, Limits::default()).unwrap()
+    }
+
+    fn links(host: &ModHost, version: &str) -> bool {
+        let wat = format!(
+            r#"(component (import "t-rustable:api/host@{version}" (instance (export "is-cancelled" (func (result bool))))))"#
+        );
+        let component = Component::new(&host.engine, wat::parse_str(&wat).unwrap()).unwrap();
+        host.linker.instantiate_pre(&component).is_ok()
+    }
+
+    #[test]
+    fn mods_for_older_0_1_versions_still_link() {
+        let host = host();
+        assert!(links(&host, "0.1.0"));
+        assert!(links(&host, "0.1.1"));
+        assert!(!links(&host, "0.2.0"));
+    }
+}

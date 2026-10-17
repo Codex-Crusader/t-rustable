@@ -628,9 +628,11 @@ impl<'d> Page<'d> {
         text: &str,
         size: f64,
         color: Rgba,
+        quarter_turns: u8,
     ) -> Result<usize, EngineError> {
         let f = self.f();
         let w = wide(text);
+        let (c, s) = quarter_turn(quarter_turns);
         // SAFETY: the font belongs to this document. On failure, the object is destroyed.
         unsafe {
             let obj = (f.text_obj_create)(self.doc.h, font.0, size as f32);
@@ -643,14 +645,19 @@ impl<'d> Page<'d> {
                 (f.obj_destroy)(obj);
                 return Err(EngineError::Internal("PDFium cannot set the text".into()));
             }
-            (f.obj_transform)(obj, 1.0, 0.0, 0.0, 1.0, origin.x, origin.y);
+            (f.obj_transform)(obj, c, s, -s, c, origin.x, origin.y);
             let (r, g, b, a) = rgba_args(color);
             (f.obj_set_fill_color)(obj, r, g, b, a);
             Ok(self.insert(obj))
         }
     }
 
-    pub fn add_image(&self, bounds: Rect, data: &ImageData) -> Result<usize, EngineError> {
+    pub fn add_image(
+        &self,
+        bounds: Rect,
+        data: &ImageData,
+        quarter_turns: u8,
+    ) -> Result<usize, EngineError> {
         let f = self.f();
         // SAFETY: the image object is new. On failure, it is destroyed.
         unsafe {
@@ -714,15 +721,8 @@ impl<'d> Page<'d> {
                     "PDFium cannot read the image".into(),
                 ));
             }
-            (f.image_set_matrix)(
-                obj,
-                bounds.width(),
-                0.0,
-                0.0,
-                bounds.height(),
-                bounds.left,
-                bounds.bottom,
-            );
+            let [a, b, c, d, e, f2] = image_matrix(bounds, quarter_turns);
+            (f.image_set_matrix)(obj, a, b, c, d, e, f2);
             Ok(self.insert(obj))
         }
     }
@@ -1066,6 +1066,27 @@ fn union(a: Rect, b: Rect) -> Rect {
 const MAX_PIXELS: u64 = 100_000_000;
 
 /// Decodes a PNG to BGRA with straight alpha.
+/// Cosine and sine of `quarter_turns` times 90 degrees, without rounding errors.
+fn quarter_turn(quarter_turns: u8) -> (f64, f64) {
+    match quarter_turns % 4 {
+        0 => (1.0, 0.0),
+        1 => (0.0, 1.0),
+        2 => (-1.0, 0.0),
+        _ => (0.0, -1.0),
+    }
+}
+
+/// The image matrix that fills `bounds` with the image turned counterclockwise.
+fn image_matrix(r: Rect, quarter_turns: u8) -> [f64; 6] {
+    let (w, h) = (r.width(), r.height());
+    match quarter_turns % 4 {
+        0 => [w, 0.0, 0.0, h, r.left, r.bottom],
+        1 => [0.0, h, -w, 0.0, r.right, r.bottom],
+        2 => [-w, 0.0, 0.0, -h, r.right, r.top],
+        _ => [0.0, -h, w, 0.0, r.left, r.top],
+    }
+}
+
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), EngineError> {
     let bad = |e: &dyn std::fmt::Display| EngineError::UnsupportedImage(format!("PNG: {e}"));
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));

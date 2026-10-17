@@ -89,7 +89,16 @@ impl HostState {
 
 impl types::Host for HostState {}
 
-impl document::Host for HostState {}
+impl document::Host for HostState {
+    fn measure_text(&mut self, text: String, style: types::TextStyle) -> Result<f64, ApiError> {
+        let font = self
+            .services
+            .fonts
+            .select(&style.font_family, style.bold, style.italic)
+            .map_err(cv::error)?;
+        t_rustable_core::fonts::text_width(&font, &text, style.size).map_err(cv::error)
+    }
+}
 
 impl document::HostDoc for HostState {
     fn page_ids(&mut self, doc: Resource<DocRes>) -> Vec<types::PageId> {
@@ -370,6 +379,7 @@ impl edit::HostTransaction for HostState {
                 font,
                 size: style.size,
                 color: cv::color(style.color),
+                turns: None,
             })
         })?;
         Ok(cv::api_object(id))
@@ -390,6 +400,7 @@ impl edit::HostTransaction for HostState {
                 page: cv::page_id(page),
                 bounds: cv::rect(bounds),
                 image,
+                turns: None,
             })
         })?;
         Ok(cv::api_object(id))

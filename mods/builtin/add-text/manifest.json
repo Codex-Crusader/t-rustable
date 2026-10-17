@@ -1,0 +1,15 @@
+{
+  "id": "t-rustable.add-text",
+  "name": "Add text",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable",
+  "description": "Adds a line of text. Click on a page, type, then press Enter.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "add_text.wasm",
+  "worlds": ["interactive"],
+  "actions": [
+    { "id": "add-text", "title": "Add text", "description": "Adds text at a position on the active page. Arguments: x, y, text, and size." }
+  ]
+}

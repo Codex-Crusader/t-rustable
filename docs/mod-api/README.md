@@ -1,6 +1,6 @@
 # Mod API 0.1
 
-A T-Rustable mod is a WebAssembly component. It uses the WIT package `t-rustable:api@0.1.0` in `wit/`. Built-in tools are mods too, and they use the same API.
+A T-Rustable mod is a WebAssembly component. It uses the WIT package `t-rustable:api@0.1.1` in `wit/`. Built-in tools are mods too, and they use the same API.
 
 Status: design for review (REVIEW 2). There is no host until Milestone 3. The template and the guide are checked by building them, not by running them in the app.
 

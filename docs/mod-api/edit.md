@@ -1,6 +1,6 @@
 # edit
 
-Interface `t-rustable:api/edit@0.1.0`. Changes to a document. Permission: `document.edit`.
+Interface `t-rustable:api/edit@0.1.1`. Changes to a document. Permission: `document.edit`.
 
 A mod changes a document only through core commands in a transaction. The journal records the core commands, not the mod, so undo and replay never need the mod (ADR 0004).
 
@@ -22,10 +22,12 @@ A transaction is valid only during the export call that opened it. Commit it bef
 | `move-page(page, before)` | | `before` none moves the page to the end. |
 | `rotate-page(page, degrees)` | | Adds `degrees` to the current rotation. A multiple of 90. Positive is clockwise. |
 | `insert-blank-page(before, width, height)` | `page-id` | Size in points. `before` none inserts at the end. |
-| `add-text(page, at, text, style)` | `object-id` | `at` is the start of the baseline. |
+| `add-text(page, at, text, style)` | `object-id` | `at` is the start of the baseline. One line: control characters give `invalid-argument`. |
 | `add-image(page, bounds, data)` | `object-id` | `data` is a PNG or JPEG file. The host stores it by SHA-256. |
 | `add-shape(page, shape, stroke, fill)` | `object-id` | `shape`: rect, ellipse, line, polyline |
 | `remove-object(object)` | | Page objects and annotations |
+
+New text and images read upright for the reader. On a page with a rotation of 90 degrees, the baseline of new text goes up the page in user space (+y), and the width of a new image runs along the height of `bounds`. At 180 and 270 degrees, the same rule applies. Thus a mod gives positions in user space and does not turn the content itself.
 
 A method that makes a page or an object returns its new ID. Later commands in the same transaction can use that ID.
 

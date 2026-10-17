@@ -106,12 +106,19 @@ pub enum EditOp {
         font: Arc<[u8]>,
         size: f64,
         color: Rgba,
+        /// Quarter turns counterclockwise about `origin`, 0 to 3.
+        #[serde(default)]
+        quarter_turns: u8,
     },
     /// Adds an image object at the end of the page object list.
     AddImage {
         page: usize,
         bounds: Rect,
         data: ImageData,
+        /// Quarter turns counterclockwise of the image inside `bounds`, 0 to 3.
+        /// At 1 or 3, the image width runs along the height of `bounds`.
+        #[serde(default)]
+        quarter_turns: u8,
     },
     /// Adds a path object at the end of the page object list.
     AddPath {

@@ -12,6 +12,13 @@ The API is the WIT package `t-rustable:api@<version>`. The goal: a mod that work
 
 While the API is `0.x`, a compatible release changes the last number (`0.1.0` to `0.1.1`), and an incompatible release changes the middle number (`0.1` to `0.2`). From `1.0.0`, compatible releases change the middle number and incompatible releases change the first number. This matches how wasmtime links versions.
 
+## Releases
+
+| Version | Changes |
+|---|---|
+| `0.1.0` | First version. |
+| `0.1.1` | New function `document.measure-text`. |
+
 ## Promises
 
 - A mod built for `0.1.x` loads in every later `0.1.y` host.

@@ -164,15 +164,36 @@ fn content_page(op: &EditOp) -> Option<usize> {
     }
 }
 
+fn turns(quarter_turns: u8) -> Result<(), EngineError> {
+    if quarter_turns < 4 {
+        Ok(())
+    } else {
+        Err(EngineError::InvalidArgument(format!(
+            "quarter turns must be 0 to 3, not {quarter_turns}"
+        )))
+    }
+}
+
 fn validate_content(op: &EditOp) -> Result<(), EngineError> {
     match op {
-        EditOp::AddText { text, size, .. } => {
+        EditOp::AddText {
+            text,
+            size,
+            quarter_turns,
+            ..
+        } => {
             positive("font size", *size, 1000.0)?;
+            turns(*quarter_turns)?;
             if text.is_empty() {
                 return Err(EngineError::InvalidArgument("the text is empty".into()));
             }
         }
-        EditOp::AddImage { bounds, .. } => {
+        EditOp::AddImage {
+            bounds,
+            quarter_turns,
+            ..
+        } => {
+            turns(*quarter_turns)?;
             positive("image width", bounds.width(), MAX_PAGE_SIZE)?;
             positive("image height", bounds.height(), MAX_PAGE_SIZE)?;
         }
@@ -217,16 +238,22 @@ fn edit_page(
                 text,
                 size,
                 color,
+                quarter_turns,
                 ..
             } => {
                 let font = font.expect("font loaded above");
                 want.push((ObjectKind::Text, text.clone()));
-                p.add_text(font, *origin, text, *size, *color)
+                p.add_text(font, *origin, text, *size, *color, *quarter_turns)
                     .map(|index| Applied::Object { index })
             }
-            EditOp::AddImage { bounds, data, .. } => {
+            EditOp::AddImage {
+                bounds,
+                data,
+                quarter_turns,
+                ..
+            } => {
                 want.push((ObjectKind::Image, String::new()));
-                p.add_image(*bounds, data)
+                p.add_image(*bounds, data, *quarter_turns)
                     .map(|index| Applied::Object { index })
             }
             EditOp::AddPath {

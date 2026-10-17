@@ -1,6 +1,6 @@
 # files
 
-Interface `t-rustable:api/files@0.1.0`. Permission: `files.pick`. Interactive world only.
+Interface `t-rustable:api/files@0.1.1`. Permission: `files.pick`. Interactive world only.
 
 A mod has no file system access. The user picks each file in a host dialog.
 

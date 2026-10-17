@@ -1,4 +1,4 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Exported by interactive mods. The host calls these functions.
 interface tool {

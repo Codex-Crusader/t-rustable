@@ -435,7 +435,7 @@ impl Session {
     }
 
     /// Checks a command against the state after the commands before it, then adds it.
-    pub fn add(&mut self, tx: &mut Transaction, command: Command) -> Result<()> {
+    pub fn add(&mut self, tx: &mut Transaction, mut command: Command) -> Result<()> {
         self.ensure_open()?;
         let mut reader = LiveReader {
             engine: &self.engine,
@@ -443,6 +443,7 @@ impl Session {
             seed: &self.seed,
             live: &mut self.ids,
         };
+        command.resolve(&mut tx.state, &mut reader);
         command
             .step(&mut tx.state, &self.assets, &mut reader)
             .map_err(|e| e.at_command(tx.commands.len()))?;

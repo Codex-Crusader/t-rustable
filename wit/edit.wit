@@ -1,4 +1,4 @@
-package t-rustable:api@0.1.0;
+package t-rustable:api@0.1.1;
 
 /// Changes to a document, as atomic transactions of core commands. Permission: document.edit.
 /// New core commands come as new `transaction` methods.
@@ -25,8 +25,12 @@ interface edit {
         rotate-page: func(page: page-id, degrees: s32) -> result<_, api-error>;
         /// Inserts a blank page before `before`. None inserts it at the end.
         insert-blank-page: func(before: option<page-id>, width: f64, height: f64) -> result<page-id, api-error>;
+        /// One line of text. `at` is the start of the baseline. The text reads upright for the
+        /// reader: on a rotated page, the baseline turns with the page rotation.
         add-text: func(page: page-id, at: point, text: string, style: text-style) -> result<object-id, api-error>;
-        /// `data` is a PNG or JPEG file.
+        /// `data` is a PNG or JPEG file. The image fills `bounds` and reads upright for the
+        /// reader: on a page rotated by 90 or 270 degrees, the image width runs along the
+        /// height of `bounds`.
         add-image: func(page: page-id, bounds: rect, data: list<u8>) -> result<object-id, api-error>;
         add-shape: func(page: page-id, shape: shape, stroke: option<stroke>, fill: option<color>) -> result<object-id, api-error>;
         remove-object: func(object: object-id) -> result<_, api-error>;

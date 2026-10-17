@@ -10,6 +10,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "add-text"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "t-rustable-sdk",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"

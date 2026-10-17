@@ -55,12 +55,21 @@ pub enum Command {
         font: AssetId,
         size: f64,
         color: Rgba,
+        /// Quarter turns counterclockwise, 0 to 3. None: upright for the reader at the
+        /// page rotation. `Session::add` stores the resolved value in the journal.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        turns: Option<u8>,
     },
+    /// At 1 or 3 turns, the image width runs along the height of `bounds`.
     AddImage {
         id: ObjectId,
         page: PageId,
         bounds: Rect,
         image: AssetId,
+        /// Quarter turns counterclockwise, 0 to 3. None: upright for the reader at the
+        /// page rotation. `Session::add` stores the resolved value in the journal.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        turns: Option<u8>,
     },
     AddShape {
         id: ObjectId,
@@ -102,6 +111,22 @@ fn loaded<'a>(
         entry.content.get_or_insert(content);
     }
     Ok(entry)
+}
+
+/// The given quarter turns, or the page rotation, so that new content reads upright.
+fn resolve_turns(
+    state: &mut IdMap,
+    index: usize,
+    turns: Option<u8>,
+    reader: &mut dyn PageReader,
+) -> Result<u8> {
+    match turns {
+        Some(t) if t < 4 => Ok(t),
+        Some(t) => Err(CoreError::invalid(format!(
+            "The quarter turns must be 0 to 3. They are {t}."
+        ))),
+        None => Ok(loaded(state, index, reader)?.rotation.unwrap()),
+    }
 }
 
 fn finite(name: &str, values: &[f64]) -> Result<()> {
@@ -226,6 +251,26 @@ fn check_shape(shape: &Shape, stroke: Option<&Stroke>, fill: Option<Rgba>) -> Re
 }
 
 impl Command {
+    /// Fills an empty `turns` of `AddText` and `AddImage` from the page rotation in
+    /// `state`. Thus the journal does not depend on the rule for upright content.
+    pub fn resolve(&mut self, state: &mut IdMap, reader: &mut dyn PageReader) {
+        if let Command::AddText {
+            page,
+            turns: t @ None,
+            ..
+        }
+        | Command::AddImage {
+            page,
+            turns: t @ None,
+            ..
+        } = self
+            && let Some(i) = state.page_index(*page)
+            && let Ok(entry) = loaded(state, i, reader)
+        {
+            *t = entry.rotation;
+        }
+    }
+
     /// Checks the command against `state`, changes `state`, and returns the engine ops.
     /// On error, `state` can be partly changed. Use a copy.
     pub fn step(
@@ -323,9 +368,11 @@ impl Command {
                 font,
                 size,
                 color,
+                turns,
             } => {
                 let i = page_index(state, *page)?;
                 check_new_object(state, *id)?;
+                let quarter_turns = resolve_turns(state, i, *turns, reader)?;
                 finite("text position", &[at.x, at.y])?;
                 in_range("font size", *size, MAX_FONT_SIZE)?;
                 if text.is_empty() || text.chars().count() > MAX_TEXT_CHARS {
@@ -351,6 +398,7 @@ impl Command {
                     font: data.clone(),
                     size: *size,
                     color: *color,
+                    quarter_turns,
                 };
                 vec![(op, Some(index))]
             }
@@ -359,9 +407,11 @@ impl Command {
                 page,
                 bounds,
                 image,
+                turns,
             } => {
                 let i = page_index(state, *page)?;
                 check_new_object(state, *id)?;
+                let quarter_turns = resolve_turns(state, i, *turns, reader)?;
                 check_rect("image", bounds)?;
                 let data = assets
                     .get(*image)
@@ -382,6 +432,7 @@ impl Command {
                         page: i,
                         bounds: *bounds,
                         data,
+                        quarter_turns,
                     },
                     Some(index),
                 )]
@@ -760,6 +811,7 @@ mod tests {
                 b: 0,
                 a: 255,
             },
+            turns: None,
         }
     }
 
@@ -804,6 +856,7 @@ lines"
             page: p,
             bounds: BOX,
             image: t.png,
+            turns: None,
         };
         assert_eq!(c.describe(&t.state), "Add an image on page 1");
         let o = t.step(&c).unwrap();
@@ -824,6 +877,7 @@ lines"
             page: p,
             bounds: BOX,
             image: gif,
+            turns: None,
         };
         assert_eq!(t.err(&bad).code, code::UNSUPPORTED_FORMAT);
         let flat = Rect { top: 10.0, ..BOX };
@@ -832,6 +886,7 @@ lines"
             page: p,
             bounds: flat,
             image: t.png,
+            turns: None,
         };
         assert_eq!(t.err(&bad).code, code::INVALID_ARGUMENT);
     }

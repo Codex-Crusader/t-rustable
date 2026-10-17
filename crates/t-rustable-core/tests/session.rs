@@ -66,6 +66,7 @@ fn add_text(page: PageId, font: AssetId, at: (f64, f64), text: &str) -> (ObjectI
         font,
         size: 14.0,
         color: BLACK,
+        turns: None,
     };
     (id, c)
 }
@@ -122,6 +123,7 @@ fn edits_keep_stable_ids() {
                 page: p0,
                 bounds: rect(100.0, 100.0, 150.0, 150.0),
                 image,
+                turns: None,
             },
         ],
     )
@@ -336,6 +338,7 @@ fn recovery_from_the_journal_gives_the_same_state() {
         page: pages[1],
         bounds: rect(0.0, 0.0, 40.0, 40.0),
         image,
+        turns: None,
     };
     commit(&mut s, vec![image_cmd]).unwrap();
     let want = snapshot(&mut s);
@@ -439,4 +442,78 @@ fn save_writes_the_file_and_guards_signatures() {
     )
     .unwrap_err();
     assert_eq!(err.code, code::INVALID_ARGUMENT);
+}
+
+/// Box of the dark pixels of a render: width and height in pixels.
+fn ink_size(b: &t_rustable_engine::Bitmap) -> (u32, u32) {
+    let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0, 0);
+    for y in 0..b.height {
+        for x in 0..b.width {
+            let i = (y * b.stride + x * 4) as usize;
+            if b.bgra[i] < 128 {
+                (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+            }
+        }
+    }
+    assert!(x1 >= x0, "no dark pixels");
+    (x1 - x0 + 1, y1 - y0 + 1)
+}
+
+#[test]
+fn new_text_reads_upright_on_a_rotated_page() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = open(&e, dir.path(), blank_pdf(&[(300.0, 300.0)]));
+    let font = s.add_asset(fonts().select("Noto Sans", false, false).unwrap());
+    let page = s.page_ids()[0];
+    commit(&mut s, vec![Command::RotatePage { page, degrees: 90 }]).unwrap();
+    let (_, text) = add_text(page, font, (150.0, 50.0), "Upright text line");
+    commit(&mut s, vec![text]).unwrap();
+
+    // The journal stores the resolved turns, not None.
+    let Command::AddText { turns, .. } = &s.history()[1].commands[0] else {
+        panic!("not AddText");
+    };
+    assert_eq!(*turns, Some(1));
+    // The render shows the page as the reader sees it: the text runs left to right.
+    let b = s.render(page, 1.0, None, Priority::Normal).unwrap();
+    let (w, h) = ink_size(&b);
+    assert!(w > 3 * h, "ink is {w} by {h} pixels");
+    s.close().unwrap();
+}
+
+#[test]
+fn text_width_matches_the_engine_layout() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = open(&e, dir.path(), blank_pdf(&[(400.0, 300.0)]));
+    let face = fonts().select("Noto Sans", false, false).unwrap();
+    let font = s.add_asset(face.clone());
+    let page = s.page_ids()[0];
+    let prefix = "Wavy text, ";
+    let (_, alone) = add_text(page, font, (20.0, 200.0), "B");
+    let (_, after) = add_text(page, font, (20.0, 100.0), &format!("{prefix}B"));
+    commit(&mut s, vec![alone, after]).unwrap();
+    let runs = s.text_runs(page).unwrap();
+    let left_of_b = |y: f64| {
+        let run = runs
+            .iter()
+            .find(|(_, r)| (r.bounds.bottom - y).abs() < 10.0)
+            .unwrap();
+        run.1
+            .chars
+            .iter()
+            .rev()
+            .find(|c| c.c == 'B')
+            .unwrap()
+            .bounds
+            .left
+    };
+    let moved = left_of_b(100.0) - left_of_b(200.0);
+    let width = t_rustable_core::fonts::text_width(&face, prefix, 14.0).unwrap();
+    assert!(
+        (moved - width).abs() < 0.05,
+        "engine {moved}, measure {width}"
+    );
+    s.close().unwrap();
 }

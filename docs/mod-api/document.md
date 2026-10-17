@@ -1,6 +1,6 @@
 # document
 
-Interface `t-rustable:api/document@0.1.0`. Read access to a document. Permission: `document.read`.
+Interface `t-rustable:api/document@0.1.1`. Read access to a document. Permission: `document.read`.
 
 ## The `doc` resource
 
@@ -20,6 +20,14 @@ The host lends a `doc` to each call of an exported function (`borrow<doc>`). A m
 | `from-display(page, display-point)` | `point` | The reverse. Error `no-display` in the batch world. |
 
 A page ID or object ID that does not exist gives the error `not-found`.
+
+## Functions
+
+| Function | Result | Notes |
+|---|---|---|
+| `measure-text(text, style)` | `f64` | Since 0.1.1. The width of `text` in points, as `edit.add-text` adds it: the sum of the glyph advances, without kerning. Error `missing-glyph` if the font cannot show a character. |
+
+Use `measure-text` to put a caret after typed text, or to make text fit a width. On a rotated page, the width goes along the baseline, which turns with the page (see [edit](edit.md)).
 
 ## Page boxes
 

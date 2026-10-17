@@ -24,7 +24,7 @@ mod ids;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Version of the WIT package `t-rustable:api` that this SDK targets.
-pub const API_VERSION: &str = "0.1.0";
+pub const API_VERSION: &str = "0.1.1";
 
 #[cfg(feature = "guest")]
 pub use bindings::interactive::t_rustable::api::{document, edit, files, host, types, ui};

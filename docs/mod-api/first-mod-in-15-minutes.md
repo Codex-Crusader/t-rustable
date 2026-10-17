@@ -87,10 +87,10 @@ On Linux, run `./build.sh`. On Windows, run `./build.ps1`.
 The script runs `cargo build --release`, then `wasm-tools component new` to make the component, and `wasm-tools validate` to check it. Then it prints the imports:
 
 ```
-import t-rustable:api/types@0.1.0;
-import t-rustable:api/document@0.1.0;
-import t-rustable:api/edit@0.1.0;
-import t-rustable:api/ui@0.1.0;
+import t-rustable:api/types@0.1.1;
+import t-rustable:api/document@0.1.1;
+import t-rustable:api/edit@0.1.1;
+import t-rustable:api/ui@0.1.1;
 ```
 
 ## 6. Check the permissions (1 minute)

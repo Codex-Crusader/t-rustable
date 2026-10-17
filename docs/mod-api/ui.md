@@ -1,6 +1,6 @@
 # ui
 
-Interface `t-rustable:api/ui@0.1.0`. Permission: `ui`. Interactive world only.
+Interface `t-rustable:api/ui@0.1.1`. Permission: `ui`. Interactive world only.
 
 ## Registration
 
