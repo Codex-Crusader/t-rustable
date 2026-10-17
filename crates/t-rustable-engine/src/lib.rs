@@ -10,6 +10,8 @@ mod handler;
 mod pdfium;
 pub mod post;
 pub mod protocol;
+#[cfg(feature = "test-hooks")]
+pub mod testing;
 
 pub use actor::{Engine, Ticket};
 pub use protocol::*;
