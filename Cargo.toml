@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "xtask"]
 exclude = ["spikes"]
 
 [workspace.package]
@@ -12,7 +12,7 @@ repository = "https://github.com/Codex-Crusader/t-rustable"
 publish = false
 
 [workspace.dependencies]
-t-rustable-sdk = { path = "crates/t-rustable-sdk" }
+t-rustable-sdk = { path = "crates/t-rustable-sdk", default-features = false }
 t-rustable-core = { path = "crates/t-rustable-core" }
 t-rustable-engine = { path = "crates/t-rustable-engine" }
 t-rustable-plugin-host = { path = "crates/t-rustable-plugin-host" }

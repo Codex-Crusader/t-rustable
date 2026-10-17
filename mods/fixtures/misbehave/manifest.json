@@ -1,0 +1,21 @@
+{
+  "id": "test.misbehave",
+  "name": "Misbehave",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable tests",
+  "description": "Test mod for the limits of the plugin host.",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "fixture_misbehave.wasm",
+  "worlds": ["interactive"],
+  "actions": [
+    { "id": "ok", "title": "Do nothing" },
+    { "id": "loop", "title": "Loop forever" },
+    { "id": "alloc", "title": "Allocate memory" },
+    { "id": "trap", "title": "Trap" },
+    { "id": "slow-host", "title": "Wait in host calls" },
+    { "id": "commit-then-trap", "title": "Commit, then trap" },
+    { "id": "keep-transaction", "title": "Keep a transaction for the next call" },
+    { "id": "use-kept-transaction", "title": "Use the kept transaction" }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "test.batch-only",
+  "name": "Batch only",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable tests",
+  "description": "Test mod: a batch job that adds blank pages at the end.",
+  "permissions": ["document.read", "document.edit"],
+  "entry": "fixture_batch_only.wasm",
+  "worlds": ["batch"]
+}

@@ -1,0 +1,16 @@
+[package]
+name = "fixture-misbehave"
+description = "Test mod: loops, uses too much memory, traps, and waits in host calls."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+t-rustable-sdk.workspace = true
+
+[lints]
+workspace = true

@@ -9,3 +9,4 @@ node_modules/
 /spikes/wasm-host/guest/target
 /spikes/*/gen
 /spikes/wit-compat/*/target
+/mods/target

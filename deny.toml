@@ -35,6 +35,10 @@ exceptions = [
     { crate = "t-rustable-plugin-host", allow = ["PolyForm-Noncommercial-1.0.0"] },
     { crate = "t-rustable-app", allow = ["PolyForm-Noncommercial-1.0.0"] },
     { crate = "t-rustable-cli", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "xtask", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    # The mods workspace (`cargo deny --manifest-path mods/Cargo.toml check --config deny.toml`).
+    { crate = "fixture-batch-only", allow = ["PolyForm-Noncommercial-1.0.0"] },
+    { crate = "fixture-misbehave", allow = ["PolyForm-Noncommercial-1.0.0"] },
 ]
 
 [bans]
