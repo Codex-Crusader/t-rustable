@@ -1,6 +1,6 @@
 # Errors
 
-Status: format and the codes of the mod API 0.1. More codes come with the features that use them.
+Status: format, the codes of the mod API 0.1, and the codes of the core and the plugin host (Milestone 3). More codes come with the features that use them.
 
 ## Format
 
@@ -36,9 +36,41 @@ Codes of the mod API 0.1. A code is never removed or renamed. New codes can come
 | `unsupported-format` | `edit.add-image`, `ui.register-overlay-image` | The image is not PNG or JPEG, or the file is damaged. |
 | `expired` | `edit`, `files` | The transaction or picked file belongs to an earlier call. Handles from the host are valid only during the export call that made them. |
 | `command-failed` | `edit.transaction.commit` | A command could not be applied. `command-index` names it. Nothing changed. |
+| `unsupported-content` | `edit.transaction.commit` | The page has content that the engine cannot keep when it writes the page again, for example a Type 3 font. Nothing changed. |
+| `missing-glyph` | `edit.add-text`, `document.measure-text` | The font cannot show some characters. The hint names them. |
 | `limit-exceeded` | `host.setting-set`, `ui` | A size limit was reached, for example 64 KB of settings per mod. |
 | `file-too-large` | `files.picked-file.read` | The file is larger than 256 MB. |
 | `cancelled` | any long call | The user cancelled the call. |
 | `timeout` | host | The mod used more than its time limit for one call. The host stopped it. |
 | `out-of-memory` | host | The mod used more than its memory limit. The host stopped it. |
 | `internal` | host | An error in T-Rustable itself. The log has the details. |
+
+## Codes of the core
+
+The GUI and the CLI get these codes from the core. A mod can get the first four through the API too.
+
+| Code | Meaning |
+|---|---|
+| `signed-document` | The document has a digital signature, and a save writes the whole file again, which makes the signature invalid. The caller must ask the user first, then save with `allow_invalidate_signatures`. |
+| `file-in-use` | Another program has the target file open, so the save cannot replace it. The target did not change. |
+| `password-required` | The document is encrypted. Open it again with the password. |
+| `damaged-file` | The file is not a PDF file, or it is too damaged to open. |
+| `io-error` | A file operation failed. `details` has the system error. |
+| `nothing-to-undo` | There is no transaction to undo. |
+| `nothing-to-redo` | There is no transaction to redo. |
+| `replay-failed` | A recovered journal does not replay on the original document, for example because the original changed. |
+
+## Codes of the plugin host
+
+The host gives these codes when a mod call fails as a whole. They are not `api-error` values that the mod returns. Commits that the mod made before the failure stay in the document, and the user can undo them.
+
+| Code | Meaning |
+|---|---|
+| `invalid-mod` | The mod cannot load: the manifest is not valid, the component is not valid, its imports do not match the manifest permissions, or it does not export what its manifest worlds need. |
+| `no-export` | The mod does not export the interface for this call, for example a batch call to an interactive-only mod. |
+| `mod-failed` | The mod stopped because of an error in its own code (a trap). The host gives it a new instance. |
+| `timeout` | The mod used more than its time limit for one call. Time in host calls does not count. |
+| `out-of-memory` | The mod used more than its memory limit. |
+| `mod-disabled` | The mod failed 3 times in a row, so the host disabled it. The user can turn it on again. |
+| `not-found` | No mod with this ID is loaded. |
+| `internal` | An error in the host itself. The log has the details. |

@@ -8,6 +8,32 @@ Thank you for your interest. Read this file before you open a pull request.
 2. For a large change, open an issue first. A change to a locked decision needs a new ADR in `docs/adr/` and approval from the owner.
 3. Read the project rules below.
 
+## Set up a fresh clone
+
+You need Rust 1.96 or later, a C++ compiler (for the vendored qpdf), and bash. On Windows, use Git Bash.
+
+1. Add the WebAssembly target for the mods:
+
+   ```
+   rustup target add wasm32-unknown-unknown
+   ```
+
+2. Download the pinned PDFium build into `.pdfium/`. The script checks its SHA-256.
+
+   ```
+   scripts/fetch-pdfium.sh
+   ```
+
+3. Build the built-in mods, the test mods, and the template into `target/mods/`:
+
+   ```
+   cargo xtask build-mods
+   ```
+
+If you skip step 2 or step 3, the tests that need PDFium or the mods fail with a message that names the command to run. They do not skip. After you change a mod or `wit/`, run step 3 again.
+
+The mods in `mods/builtin/` and `mods/fixtures/` are a second workspace, `mods/Cargo.toml`. The template in `mods/template/` is its own workspace, so that a mod author can copy it.
+
 ## Project rules
 
 - Write all docs, comments, and commit messages in ASD-STE100 Simplified Technical English. Do not use em dashes. Keep code comments short.
@@ -59,9 +85,14 @@ Run these commands before you open a pull request. All of them must pass.
 
 ```
 cargo fmt --all --check
+cargo fmt --all --check --manifest-path mods/Cargo.toml
+cargo xtask build-mods
 cargo clippy --workspace --all-targets -- -D warnings
+(cd mods && cargo clippy --release -- -D warnings)
 cargo test --workspace
+cargo test --manifest-path mods/Cargo.toml
 cargo deny check
+cargo deny --manifest-path mods/Cargo.toml check
 reuse lint
 ```
 

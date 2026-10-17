@@ -44,6 +44,7 @@ Dependency rules:
 - MIT parts never depend on PolyForm parts. `t-rustable-sdk` and `wit/` have no dependency on any other crate in this workspace.
 - The GUI and the CLI contain no editing logic. All editing logic is in the core.
 - Only the engine crate calls PDFium or qpdf.
+- The workspace denies `unsafe` code. Hand-written `unsafe` code is only in the `pdfium` module of the engine (ADR 0013). The only other exceptions are generated bindings: `wit-bindgen` in the SDK and `wasmtime::component::bindgen!` in the plugin host.
 
 ## 2. Engine actor protocol
 
@@ -69,17 +70,25 @@ Rules:
 6. A Rust panic in the engine thread is caught at the request boundary. The engine replies with an error and marks that session as broken. PDFium state can be bad after a panic, so the engine shuts PDFium down and starts it again in the same process (our own binding, ADR 0013). A restart closes the documents of all sessions, so the core reloads each open session from its journal.
 7. A native crash (for example a segfault in PDFium or qpdf) cannot be caught. It stops the app. On the next start, the journal recovers the sessions.
 
+Results of Milestone 3:
+
+- The requests are data (ADR 0015). Edit ops address pages and objects by index. The engine does not know `PageId` or `ObjectId`: the core translates them.
+- Only one engine can run in a process, because PDFium keeps global state. A second `Engine::start` fails.
+- `Engine::restarts()` counts the restarts. Before each request, a session compares the count with its own, and reloads its document from the journal if the count changed.
+- In one `Apply`, the content ops in a row on the same page share one rewrite check (ADR 0015). Measured cost of the check for one added object: 0.8 ms at 100 objects on the page, 18 ms at 3,000, 61 ms at 10,000.
+
 The engine runs in the app process for v1. A later milestone can move it to a child process. Then the protocol goes over stdin and stdout pipes, never over a TCP socket.
 
 ## 3. Stable IDs
 
 Commands and the mod API never use page indices or object indices. Indices change when pages move or objects are deleted.
 
-- `PageId`: a random 128-bit ID. The core gives one to each page when it opens the document or when a command creates a page.
-- `ObjectId`: a random 128-bit ID for each page object (text, image, path, form XObject) and each annotation.
+- `PageId`: a 128-bit ID. A page of the original gets SHA-256 of the seed, "page", and its original index, cut to 128 bits. A page that a command creates gets a random ID.
+- `ObjectId`: a 128-bit ID for each page object (text, image, path, form XObject) and each annotation. An object of the original gets SHA-256 of the seed, "object" or "annotation", its `PageId`, and its index. An object that a command creates gets a random ID.
+- The core gives IDs to the objects of a page only when something first reads that page. Because the IDs are hashes, the order of reads does not change them.
 - The `IdMap` maps each ID to the current PDFium handle or index. Only the core and the engine read the `IdMap`.
 - A command that creates a page or an object contains the new ID. The core makes the ID when the command is created, not when it is applied. Thus replay makes the same IDs again, and replay stays deterministic.
-- When the core opens the original document, it makes the IDs from a seed, in a fixed order (pages in order, objects in page order). `manifest.json` in the journal stores the seed, so a replay of the same original gives the same map.
+- `manifest.json` in the journal stores the seed, so a replay of the same original gives the same IDs.
 
 ## 4. Coordinates
 
@@ -87,6 +96,7 @@ Commands and the mod API never use page indices or object indices. Indices chang
 - The mod API gives `to-display` and `from-display`. They convert between PDF coordinates and display coordinates (pixels, origin at the top left, after rotation and zoom).
 - The host sends pointer events to mods in page coordinates.
 - The UI does display conversion only for drawing. The UI never writes display coordinates into a command.
+- New text and images read upright for the reader. On a rotated page, the core turns them with the page rotation. `AddText` and `AddImage` store the quarter turns, so replay does not depend on this rule. The host draws overlay text and images in the same way.
 
 ## 5. Commands
 
@@ -129,7 +139,7 @@ The transaction is the unit of undo. One user action is one undo step.
 
 The core keeps the original document and the list of transactions. A document state is "the original plus the first N transactions".
 
-- A checkpoint is a saved copy of the document bytes after transaction N. The core makes a checkpoint every K transactions (start value: K = 20) and after each expensive transaction. The core stores checkpoints in a temporary folder of the session.
+- A checkpoint is a saved copy of the document bytes and the ID map after transaction N. The core makes a checkpoint every 20 transactions and keeps at most 8. It stores them as files in the journal folder of the session. A checkpoint after an expensive transaction is an open item.
 - Undo to state N: load the nearest checkpoint at or before N, then replay the transactions up to N.
 - Redo: replay the next transaction.
 - A new transaction after an undo removes the redo branch.
@@ -149,7 +159,8 @@ assets/<sha256>    images and fonts that commands refer to
 ```
 
 - The core writes the journal to the app data folder (section 12) while the session is open. It is a folder with these files, not a zip, so that appends are cheap.
-- After each transaction, the core appends one line to `commands.jsonl` and flushes it to disk.
+- After each transaction, the core appends one line to `commands.jsonl` and flushes it to disk. It writes the assets of the transaction first. Undo and redo also append a line, so `commands.jsonl` has three line kinds: commit, undo, and redo.
+- Recovery replays the lines and deletes the checkpoint files of the old run.
 - A partial last line (from a crash) is ignored on recovery.
 - When the app starts, it lists the journals of sessions that did not close correctly and offers to recover them.
 - When the user closes a session, the core deletes its journal.
@@ -161,13 +172,14 @@ The app never changes a file unless the user saves.
 
 1. Apply: the current state is already in the engine.
 2. PDFium save to bytes.
-3. qpdf post-process: check the structure, repair if needed, linearize or compress if the user selected it.
+3. qpdf post-process: read the bytes (qpdf repairs small damage), write them again with compressed object streams, read the result back, and run the qpdf structure check.
 4. Write the result to a temporary file in the same folder as the target.
 5. Flush the temporary file to disk.
-6. Rename the temporary file to the target name. On the same file system, this is atomic on Linux. On Windows, it depends on the API that the rename uses. Verify in M3.
+6. Rename the temporary file to the target name. On Linux, the rename is atomic, and the core then flushes the folder. On Windows, the rename fails if another program has the target open without delete sharing (M3 spike). The core tries again for about one second, then returns `file-in-use`. In all cases, a failed rename leaves the target as it was.
 
 Special rules:
 
+- In Milestone 3, each save is a full rewrite, because the qpdf step writes the file again. A full rewrite makes digital signatures invalid. Thus the core counts the signatures when it opens a document, and a save of a signed document returns `signed-document` unless the caller passes `allow_invalidate_signatures`. The GUI must warn the user first. An incremental save that keeps signatures comes with the forms milestone.
 - If the session has any redaction, the save is always a full rewrite, never an incremental save.
 - After a redaction, the save verifies the output: no text in redacted areas, and no redacted string anywhere in the output bytes. Any match stops the save.
 - The app opens an encrypted PDF only with the user's password. The app has no feature that removes or bypasses PDF restrictions.
@@ -242,7 +254,7 @@ The app has no network access (ADR 0011).
 | `apply` fails | Rollback to the state before the transaction. The UI shows the error. |
 | The engine panics (Rust panic) | The session is marked broken. The engine restarts PDFium in the same process, and the core reloads all open sessions from their journals (ADR 0013). |
 | PDFium or qpdf crashes (native crash) | The app stops. On the next start, the app offers to recover each session from its journal. |
-| A mod traps, uses too much memory, or runs too long | The host stops the call and shows an error. After 3 failures in a row, the host disables the mod. |
+| A mod traps, uses too much memory, or runs too long | The host stops the call and gives the error `mod-failed`, `out-of-memory`, or `timeout`. The time limit counts only time in the mod's own code (default 5 s per interactive call, 10 minutes per batch call), and the memory limit is 512 MB. The mod gets a new instance. Commits that it made before the failure stay, and the user can undo them. After 3 failures in a row, the host disables the mod. |
 | The save fails | The target file does not change, because the rename is the last step. The temporary file is deleted. |
 | The app crashes | On the next start, the app offers to recover each session from its journal. |
 
