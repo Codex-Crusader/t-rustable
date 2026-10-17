@@ -2,7 +2,7 @@ mod common;
 
 use common::*;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use t_rustable_engine::*;
 
 fn query(e: &Engine, doc: DocKey, q: Query) -> Response {
@@ -697,14 +697,23 @@ fn cancel_before_start_and_during_render() {
     assert_eq!(queued.wait(), Err(EngineError::Cancelled));
     assert!(blocker.wait().is_ok());
 
-    // Cancelled during a render: the render stops at its next pause.
-    let full = Instant::now();
-    render(&e, 1, 0, 6.0);
-    let full = full.elapsed();
+    // Cancelled during a render: the render stops at its next pause. The render must be
+    // long compared with sleep and thread wakeup times, so the page grows until it is.
+    let mut doc = 1;
+    let mut rects = 3000;
+    let mut full = Duration::ZERO;
+    while full < Duration::from_millis(200) && rects <= 200_000 {
+        doc += 1;
+        rects *= 3;
+        open(&e, doc, heavy_pdf(rects));
+        let started = Instant::now();
+        render(&e, doc, 0, 6.0);
+        full = started.elapsed();
+    }
     let t = e.submit(
         Priority::Normal,
         Request::Render {
-            doc: 1,
+            doc,
             page: 0,
             scale: 6.0,
             clip: None,
@@ -714,7 +723,11 @@ fn cancel_before_start_and_during_render() {
     let started = Instant::now();
     t.cancel();
     let r = t.wait();
-    assert_eq!(r, Err(EngineError::Cancelled), "full render took {full:?}");
+    assert_eq!(
+        r,
+        Err(EngineError::Cancelled),
+        "full render took {full:?} with {rects} rectangles"
+    );
     assert!(
         started.elapsed() < full,
         "cancel took {:?}, full render {full:?}",
