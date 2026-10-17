@@ -34,6 +34,7 @@ Codes of the mod API 0.1. A code is never removed or renamed. New codes can come
 | `no-display` | `document.to-display`, `document.from-display` | There is no display, because the call runs in the batch world. |
 | `unknown-action` | `tool.run-action` | The mod has no action with this ID. |
 | `unsupported-format` | `edit.add-image`, `ui.register-overlay-image` | The image is not PNG or JPEG, or the file is damaged. |
+| `expired` | `edit`, `files` | The transaction or picked file belongs to an earlier call. Handles from the host are valid only during the export call that made them. |
 | `command-failed` | `edit.transaction.commit` | A command could not be applied. `command-index` names it. Nothing changed. |
 | `limit-exceeded` | `host.setting-set`, `ui` | A size limit was reached, for example 64 KB of settings per mod. |
 | `file-too-large` | `files.picked-file.read` | The file is larger than 256 MB. |

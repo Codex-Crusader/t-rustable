@@ -8,6 +8,7 @@ interface files {
 
     record pick-options { title: string, filters: list<file-filter> }
 
+    /// Valid only during the export call that picked it. After that, `read` returns `expired`.
     resource picked-file {
         name: func() -> string;
         size: func() -> u64;

@@ -12,13 +12,15 @@ A mod changes a document only through core commands in a transaction. The journa
 
 To discard a transaction, drop it without `commit`. One transaction is one undo step.
 
+A transaction is valid only during the export call that opened it. Commit it before the call returns. After the call, the host discards it, and each method returns `expired`. Store page and object IDs between calls, not transactions.
+
 ## Commands in 0.1
 
 | Method | Result | Notes |
 |---|---|---|
 | `delete-page(page)` | | |
 | `move-page(page, before)` | | `before` none moves the page to the end. |
-| `rotate-page(page, degrees)` | | A multiple of 90. Positive is clockwise. |
+| `rotate-page(page, degrees)` | | Adds `degrees` to the current rotation. A multiple of 90. Positive is clockwise. |
 | `insert-blank-page(before, width, height)` | `page-id` | Size in points. `before` none inserts at the end. |
 | `add-text(page, at, text, style)` | `object-id` | `at` is the start of the baseline. |
 | `add-image(page, bounds, data)` | `object-id` | `data` is a PNG or JPEG file. The host stores it by SHA-256. |

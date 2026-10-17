@@ -8,9 +8,14 @@ interface document {
         id: page-id,
         /// Page label for display, for example "iv" or "12". Not an index.
         label: string,
+        /// The full page area in user space.
+        media-box: rect,
+        /// The visible page area in user space. Place content inside it.
+        crop-box: rect,
+        /// Size of the crop box in points, before rotation.
         width: f64,
         height: f64,
-        /// Page rotation in degrees: 0, 90, 180, or 270.
+        /// Page rotation in degrees, clockwise: 0, 90, 180, or 270.
         rotation: u32,
     }
 
@@ -67,6 +72,7 @@ interface document {
     record display-point { x: f64, y: f64 }
 
     /// An open document. The host lends it to each call. A mod cannot keep it.
+    /// All handles that the host gives a mod are valid only during the current export call.
     resource doc {
         page-ids: func() -> list<page-id>;
         page-info: func(page: page-id) -> result<page-info, api-error>;

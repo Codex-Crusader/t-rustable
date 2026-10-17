@@ -25,6 +25,8 @@ In Rust, the SDK gives both ID types `Display`, `FromStr` (32 lowercase hex digi
 | `text-style` | `font-family`, `size`, `color`, `bold`, `italic` | `size` in points |
 | `log-level` | `debug`, `info`, `warn`, `error` | |
 
+All coordinates are in the user space of the page, before page rotation. The origin is where the PDF puts it. On many pages it is the bottom left of the visible area, but not on all: the crop box can start at any point. Use `page-info.crop-box` to place content.
+
 ## api-error
 
 | Field | Meaning |

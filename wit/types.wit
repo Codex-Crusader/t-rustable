@@ -1,7 +1,8 @@
 package t-rustable:api@0.1.0;
 
 /// Shared types. Every type is frozen within 0.1.x: never add a field or a case.
-/// Coordinates are PDF points (1/72 inch) in page user space, origin at the bottom left.
+/// Coordinates are PDF points (1/72 inch) in the user space of the page, before page rotation.
+/// The origin is where the PDF puts it, often but not always the bottom left: see `page-info.crop-box`.
 interface types {
     /// Stable ID of a page. It does not change when pages move.
     record page-id { hi: u64, lo: u64 }

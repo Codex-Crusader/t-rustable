@@ -28,12 +28,12 @@ License of this folder: MIT. You can copy the code samples into any mod.
 
 ## Rules that apply to every function
 
-- Coordinates are PDF points (1/72 inch) in page user space, origin at the bottom left of the unrotated page. Only `to-display` and `from-display` use screen coordinates.
+- Coordinates are PDF points (1/72 inch) in the user space of the page, before page rotation. The origin is often, but not always, the bottom left of the visible page: use `page-info.crop-box`. Only `to-display` and `from-display` use screen coordinates.
 - Pages and objects have stable IDs. The API never uses page indices.
 - Every function that can fail returns `result<_, api-error>`. Error codes are in `docs/errors.md`.
 - Every call has a memory limit and a time limit. The time limit stops while the host waits for the user (`ui.confirm`, `files.pick`). A mod that fails 3 times in a row is disabled.
 - A mod has no file or network access. It gets files only through `files.pick`.
-- A mod cannot keep a document. The host lends a `doc` to each call.
+- A mod cannot keep a document. The host lends a `doc` to each call. Every handle from the host (`doc`, `transaction`, `picked-file`) is valid only during the export call that made it. Store IDs, not handles.
 
 ## Check against later built-in tools
 

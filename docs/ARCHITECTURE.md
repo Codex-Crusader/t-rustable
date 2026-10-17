@@ -83,7 +83,7 @@ Commands and the mod API never use page indices or object indices. Indices chang
 
 ## 4. Coordinates
 
-- Commands store native PDF user space coordinates: points (1/72 inch), `f64`, origin at the bottom left of the page, before the page rotation.
+- Commands store native PDF user space coordinates: points (1/72 inch), `f64`, before the page rotation. The origin is where the PDF puts it, often but not always the bottom left of the crop box. The mod API gives each page its media box and crop box.
 - The mod API gives `to-display` and `from-display`. They convert between PDF coordinates and display coordinates (pixels, origin at the top left, after rotation and zoom).
 - The host sends pointer events to mods in page coordinates.
 - The UI does display conversion only for drawing. The UI never writes display coordinates into a command.
@@ -112,7 +112,7 @@ Rules:
 
 A transaction is a list of commands with a label. The user, a built-in mod, or an external mod makes it.
 
-Mods make a transaction through the `edit` interface (ADR 0012): `edit.begin(doc, label)` returns a `transaction` resource with one method per core command, and `transaction.commit(tx)` submits it. The GUI and the CLI use the same core functions directly.
+Mods make a transaction through the `edit` interface (ADR 0012): `edit.begin(doc, label)` returns a `transaction` resource with one method per core command, and `transaction.commit(tx)` submits it. A mod transaction is valid only during the export call that opened it. When the call returns, the host discards an open transaction. The GUI and the CLI use the same core functions directly.
 
 Lifecycle:
 

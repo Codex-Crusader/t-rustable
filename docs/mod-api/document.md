@@ -9,7 +9,7 @@ The host lends a `doc` to each call of an exported function (`borrow<doc>`). A m
 | Method | Result | Notes |
 |---|---|---|
 | `page-ids()` | `list<page-id>` | In page order |
-| `page-info(page)` | `page-info` | ID, display label (for example "iv"), width and height in points, rotation (0, 90, 180, 270) |
+| `page-info(page)` | `page-info` | ID, display label (for example "iv"), `media-box`, `crop-box`, width and height of the crop box before rotation, rotation (0, 90, 180, 270, clockwise) |
 | `text-runs(page)` | `list<text-run>` | Text, font name, font size, bounds, and the box of each character |
 | `objects(page)` | `list<object-info>` | ID, kind (text, image, path, shading, form-xobject, unknown), bounds |
 | `annotations(page)` | `list<annotation-info>` | ID, PDF subtype (for example "Highlight"), bounds, contents |
@@ -20,6 +20,10 @@ The host lends a `doc` to each call of an exported function (`borrow<doc>`). A m
 | `from-display(page, display-point)` | `point` | The reverse. Error `no-display` in the batch world. |
 
 A page ID or object ID that does not exist gives the error `not-found`.
+
+## Page boxes
+
+`media-box` is the full page area. `crop-box` is the visible area, and it is inside the media box. Both are in user space, so `crop-box.left` and `crop-box.bottom` are not always 0. To place text 1 inch below the top of the visible page, use `crop-box.top - 72.0`, not `height - 72.0`.
 
 ## Example (Rust)
 

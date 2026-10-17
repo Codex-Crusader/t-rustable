@@ -15,12 +15,13 @@ interface edit {
     }
 
     /// A transaction that is not committed yet. Each method checks its command at once.
-    /// Drop it without `commit` to discard it.
+    /// Drop it without `commit` to discard it. It is valid only during the export call that
+    /// opened it: after that call, the host discards it, and each method returns `expired`.
     resource transaction {
         delete-page: func(page: page-id) -> result<_, api-error>;
         /// Moves the page before `before`. None moves it to the end.
         move-page: func(page: page-id, before: option<page-id>) -> result<_, api-error>;
-        /// `degrees` must be a multiple of 90.
+        /// Adds `degrees` to the current rotation. A multiple of 90. Positive is clockwise.
         rotate-page: func(page: page-id, degrees: s32) -> result<_, api-error>;
         /// Inserts a blank page before `before`. None inserts it at the end.
         insert-blank-page: func(before: option<page-id>, width: f64, height: f64) -> result<page-id, api-error>;

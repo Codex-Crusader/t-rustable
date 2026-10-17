@@ -11,4 +11,6 @@ A mod has no file system access. The user picks each file in a host dialog.
 | `picked-file.size()` | Size in bytes. |
 | `picked-file.read()` | The content. Error `file-too-large` above 256 MB. |
 
+A `picked-file` is valid only during the export call that picked it. Read it in that call. After the call, `read` returns `expired`.
+
 A dialog to save files is not in 0.1. It can come later as a new function.
