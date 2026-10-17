@@ -1,0 +1,122 @@
+package t-rustable:api@0.1.0;
+
+/// Shared types. Every type is frozen within 0.1.x: never add a field or a case.
+/// Coordinates are PDF points (1/72 inch) in page user space, origin at the bottom left.
+interface types {
+    /// Stable ID of a page. It does not change when pages move.
+    record page-id { hi: u64, lo: u64 }
+
+    /// Stable ID of a page object, an annotation, or a form field.
+    record object-id { hi: u64, lo: u64 }
+
+    /// ID of a committed transaction.
+    type transaction-id = u64;
+
+    record point { x: f64, y: f64 }
+
+    record rect { left: f64, bottom: f64, right: f64, top: f64 }
+
+    /// sRGB color with alpha. 255 is opaque.
+    record color { r: u8, g: u8, b: u8, a: u8 }
+
+    /// Line style. `dash` is a list of on and off lengths in points. Empty means solid.
+    record stroke { color: color, width: f64, dash: list<f64> }
+
+    record text-style {
+        font-family: string,
+        size: f64,
+        color: color,
+        bold: bool,
+        italic: bool,
+    }
+
+    enum log-level { debug, info, warn, error }
+
+    /// Error from any API call. `code` is stable and listed in docs/errors.md.
+    record api-error {
+        code: string,
+        message: string,
+        hint: option<string>,
+        details: option<string>,
+        /// Index of the failing command, when a transaction commit fails.
+        command-index: option<u32>,
+    }
+
+    enum arrowhead { none, open, closed }
+
+    enum handle-kind { corner, edge, rotate, move }
+
+    record overlay-rect {
+        page: page-id,
+        bounds: rect,
+        stroke: option<stroke>,
+        fill: option<color>,
+        label: string,
+    }
+
+    record overlay-line {
+        page: page-id,
+        start: point,
+        end: point,
+        stroke: stroke,
+        start-head: arrowhead,
+        end-head: arrowhead,
+        label: string,
+    }
+
+    /// Open or closed line through points. Also for freehand ink.
+    record overlay-polyline {
+        page: page-id,
+        points: list<point>,
+        closed: bool,
+        stroke: option<stroke>,
+        fill: option<color>,
+        label: string,
+    }
+
+    record overlay-text {
+        page: page-id,
+        at: point,
+        text: string,
+        style: text-style,
+        label: string,
+    }
+
+    /// Preview of an image. `image` comes from `ui.register-overlay-image`.
+    record overlay-image {
+        page: page-id,
+        bounds: rect,
+        image: u32,
+        opacity: f32,
+        label: string,
+    }
+
+    record overlay-caret {
+        page: page-id,
+        at: point,
+        height: f64,
+        color: color,
+        label: string,
+    }
+
+    /// Selection grip. The host draws it at a fixed screen size.
+    record overlay-handle {
+        page: page-id,
+        at: point,
+        kind: handle-kind,
+        label: string,
+    }
+
+    /// A shape that the host draws over a page. Each shape has an accessibility label.
+    /// New shape kinds come through new `ui` functions, never as new cases here.
+    variant overlay-shape {
+        rect(overlay-rect),
+        ellipse(overlay-rect),
+        line(overlay-line),
+        polyline(overlay-polyline),
+        text(overlay-text),
+        image(overlay-image),
+        caret(overlay-caret),
+        handle(overlay-handle),
+    }
+}

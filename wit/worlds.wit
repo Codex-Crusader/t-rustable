@@ -1,0 +1,87 @@
+package t-rustable:api@0.1.0;
+
+/// Exported by interactive mods. The host calls these functions.
+interface tool {
+    use types.{page-id, point, transaction-id, overlay-shape, api-error};
+    use document.{doc};
+
+    enum pointer-kind { down, move, up, enter, leave, double-click }
+
+    enum pointer-button { none, primary, secondary, middle }
+
+    flags modifiers { shift, ctrl, alt, meta }
+
+    /// Position in page coordinates.
+    record pointer-event {
+        kind: pointer-kind,
+        page: page-id,
+        at: point,
+        button: pointer-button,
+        modifiers: modifiers,
+        pressure: f32,
+    }
+
+    enum cursor {
+        default, crosshair, text, move, pointer, grab, grabbing, not-allowed,
+        resize-ns, resize-ew, resize-nesw, resize-nwse,
+    }
+
+    record pointer-result { overlay: list<overlay-shape>, cursor: cursor, handled: bool }
+
+    enum key-kind { down, up }
+
+    /// `key` and `code` use the DOM KeyboardEvent values.
+    record key-event { kind: key-kind, key: string, code: string, modifiers: modifiers, repeat: bool }
+
+    record key-result { handled: bool }
+
+    record document-change {
+        transaction: option<transaction-id>,
+        affected-pages: list<page-id>,
+        /// True when pages were added, removed, or moved.
+        structure-changed: bool,
+    }
+
+    activate: func() -> result<_, api-error>;
+    deactivate: func();
+    /// `args` is a JSON string. `document` is none when no document is open.
+    run-action: func(document: option<borrow<doc>>, action-id: string, args: string) -> result<_, api-error>;
+    on-pointer: func(document: borrow<doc>, event: pointer-event) -> pointer-result;
+    on-key: func(document: borrow<doc>, event: key-event) -> key-result;
+    /// `message` is a JSON string from the panel.
+    on-panel-message: func(panel-id: string, message: string) -> result<_, api-error>;
+    on-document-changed: func(document: borrow<doc>, change: document-change);
+}
+
+/// Exported by batch mods.
+interface batch-job {
+    use types.{api-error};
+    use document.{doc};
+
+    /// `args` is a JSON string. Returns a JSON string.
+    run: func(document: borrow<doc>, args: string) -> result<string, api-error>;
+}
+
+/// GUI mods.
+world interactive {
+    import document;
+    import edit;
+    import host;
+    import ui;
+    import files;
+    export tool;
+}
+
+/// CLI mods. No UI and no file dialogs.
+world batch {
+    import document;
+    import edit;
+    import host;
+    export batch-job;
+}
+
+/// Mods that run in the GUI and in the CLI.
+world full {
+    include interactive;
+    export batch-job;
+}

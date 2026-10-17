@@ -1,0 +1,50 @@
+package t-rustable:api@0.1.0;
+
+/// Actions, toolbar, panels, overlays, and messages. Permission: ui.
+interface ui {
+    use types.{page-id, object-id, overlay-shape, api-error};
+
+    record action { id: string, title: string, description: string }
+
+    /// `icon` is the path of an SVG file in the mod package.
+    record toolbar-item { action-id: string, icon: option<string>, tooltip: string }
+
+    /// `entry` is the path of an HTML file in the mod package.
+    record panel { id: string, title: string, entry: string }
+
+    /// `keys` uses the form "Ctrl+Shift+R". The user decides the final shortcut.
+    record shortcut { action-id: string, keys: string }
+
+    enum notify-level { info, success, warning, error }
+
+    /// The state of the active tab. IDs only; no document handle.
+    record ui-context {
+        document-open: bool,
+        active-page: option<page-id>,
+        selected-pages: list<page-id>,
+        selected-objects: list<object-id>,
+        zoom: f64,
+    }
+
+    register-action: func(action: action) -> result<_, api-error>;
+    register-toolbar-item: func(item: toolbar-item) -> result<_, api-error>;
+    register-panel: func(panel: panel) -> result<_, api-error>;
+    suggest-shortcut: func(shortcut: shortcut) -> result<_, api-error>;
+
+    /// Replaces the overlay of this mod.
+    set-overlay: func(shapes: list<overlay-shape>);
+    clear-overlay: func();
+
+    /// Registers a PNG or JPEG for `overlay-shape::image`. Returns its image ID.
+    register-overlay-image: func(data: list<u8>) -> result<u32, api-error>;
+
+    /// Sends a JSON string to a panel of this mod.
+    post-to-panel: func(panel-id: string, message: string) -> result<_, api-error>;
+
+    notify: func(level: notify-level, message: string);
+
+    /// Shows a yes or no dialog. The time limit of the call stops while the dialog is open.
+    confirm: func(title: string, message: string) -> bool;
+
+    context: func() -> ui-context;
+}

@@ -1,0 +1,21 @@
+package t-rustable:api@0.1.0;
+
+/// Files that the user picks in a host dialog. Permission: files.pick.
+interface files {
+    use types.{api-error};
+
+    record file-filter { name: string, extensions: list<string> }
+
+    record pick-options { title: string, filters: list<file-filter> }
+
+    resource picked-file {
+        name: func() -> string;
+        size: func() -> u64;
+        /// Error `file-too-large` above 256 MB.
+        read: func() -> result<list<u8>, api-error>;
+    }
+
+    /// Shows an open dialog. None when the user cancels.
+    /// The time limit of the call stops while the dialog is open.
+    pick: func(options: pick-options) -> result<option<picked-file>, api-error>;
+}

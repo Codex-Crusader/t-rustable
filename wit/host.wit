@@ -1,0 +1,21 @@
+package t-rustable:api@0.1.0;
+
+/// Log, progress, cancel, and per-mod settings. No permission needed.
+interface host {
+    use types.{log-level, api-error};
+
+    log: func(level: log-level, message: string);
+
+    /// `fraction` from 0.0 to 1.0.
+    progress: func(fraction: f32, message: string);
+
+    /// True when the user cancelled the current call. Check it in long loops.
+    is-cancelled: func() -> bool;
+
+    setting-get: func(key: string) -> option<string>;
+
+    /// Error `limit-exceeded` when all settings of the mod pass 64 KB.
+    setting-set: func(key: string, value: string) -> result<_, api-error>;
+
+    setting-remove: func(key: string);
+}

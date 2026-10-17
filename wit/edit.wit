@@ -1,0 +1,38 @@
+package t-rustable:api@0.1.0;
+
+/// Changes to a document, as atomic transactions of core commands. Permission: document.edit.
+/// New core commands come as new `transaction` methods.
+interface edit {
+    use types.{page-id, object-id, transaction-id, point, rect, color, stroke, text-style, api-error};
+    use document.{doc};
+
+    /// Geometry of a shape for `add-shape`.
+    variant shape {
+        rect(rect),
+        ellipse(rect),
+        line(tuple<point, point>),
+        polyline(list<point>),
+    }
+
+    /// A transaction that is not committed yet. Each method checks its command at once.
+    /// Drop it without `commit` to discard it.
+    resource transaction {
+        delete-page: func(page: page-id) -> result<_, api-error>;
+        /// Moves the page before `before`. None moves it to the end.
+        move-page: func(page: page-id, before: option<page-id>) -> result<_, api-error>;
+        /// `degrees` must be a multiple of 90.
+        rotate-page: func(page: page-id, degrees: s32) -> result<_, api-error>;
+        /// Inserts a blank page before `before`. None inserts it at the end.
+        insert-blank-page: func(before: option<page-id>, width: f64, height: f64) -> result<page-id, api-error>;
+        add-text: func(page: page-id, at: point, text: string, style: text-style) -> result<object-id, api-error>;
+        /// `data` is a PNG or JPEG file.
+        add-image: func(page: page-id, bounds: rect, data: list<u8>) -> result<object-id, api-error>;
+        add-shape: func(page: page-id, shape: shape, stroke: option<stroke>, fill: option<color>) -> result<object-id, api-error>;
+        remove-object: func(object: object-id) -> result<_, api-error>;
+
+        /// Applies all commands at once. On error, nothing changes.
+        commit: static func(tx: transaction) -> result<transaction-id, api-error>;
+    }
+
+    begin: func(document: borrow<doc>, label: string) -> result<transaction, api-error>;
+}

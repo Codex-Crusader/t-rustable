@@ -1,0 +1,84 @@
+package t-rustable:api@0.1.0;
+
+/// Read access to a document. Permission: document.read.
+interface document {
+    use types.{page-id, object-id, point, rect, api-error};
+
+    record page-info {
+        id: page-id,
+        /// Page label for display, for example "iv" or "12". Not an index.
+        label: string,
+        width: f64,
+        height: f64,
+        /// Page rotation in degrees: 0, 90, 180, or 270.
+        rotation: u32,
+    }
+
+    record char-info { c: char, bounds: rect }
+
+    record text-run {
+        object: option<object-id>,
+        text: string,
+        font-name: string,
+        font-size: f64,
+        bounds: rect,
+        chars: list<char-info>,
+    }
+
+    enum object-kind { text, image, path, shading, form-xobject, unknown }
+
+    record object-info { id: object-id, kind: object-kind, bounds: rect }
+
+    record annotation-info {
+        id: object-id,
+        /// PDF annotation subtype, for example "Highlight" or "Square".
+        subtype: string,
+        bounds: rect,
+        contents: option<string>,
+    }
+
+    enum form-field-kind { text, checkbox, radio, combo-box, list-box, push-button, signature, unknown }
+
+    record form-field-info {
+        id: object-id,
+        page: page-id,
+        name: string,
+        kind: form-field-kind,
+        value: option<string>,
+        bounds: rect,
+        read-only: bool,
+    }
+
+    record search-options { match-case: bool, whole-word: bool, max-hits: u32 }
+
+    record search-hit { page: page-id, text: string, boxes: list<rect> }
+
+    record metadata {
+        title: option<string>,
+        author: option<string>,
+        subject: option<string>,
+        keywords: option<string>,
+        creator: option<string>,
+        producer: option<string>,
+        page-count: u32,
+    }
+
+    /// Position on screen in CSS pixels, relative to the top left of the page view.
+    record display-point { x: f64, y: f64 }
+
+    /// An open document. The host lends it to each call. A mod cannot keep it.
+    resource doc {
+        page-ids: func() -> list<page-id>;
+        page-info: func(page: page-id) -> result<page-info, api-error>;
+        text-runs: func(page: page-id) -> result<list<text-run>, api-error>;
+        objects: func(page: page-id) -> result<list<object-info>, api-error>;
+        annotations: func(page: page-id) -> result<list<annotation-info>, api-error>;
+        form-fields: func() -> result<list<form-field-info>, api-error>;
+        search: func(query: string, options: search-options) -> result<list<search-hit>, api-error>;
+        metadata: func() -> metadata;
+        /// Error `no-display` in the batch world.
+        to-display: func(page: page-id, p: point) -> result<display-point, api-error>;
+        /// Error `no-display` in the batch world.
+        from-display: func(page: page-id, p: display-point) -> result<point, api-error>;
+    }
+}
