@@ -1,0 +1,218 @@
+{
+  "base": {
+    "id": "com.example.rotate",
+    "name": "Rotate",
+    "version": "1.0.0",
+    "apiVersion": "0.1",
+    "author": "Example",
+    "description": "Rotates pages.",
+    "permissions": [
+      "document.read",
+      "document.edit",
+      "ui"
+    ],
+    "entry": "mod.wasm",
+    "worlds": [
+      "interactive"
+    ],
+    "panels": [
+      {
+        "id": "options",
+        "title": "Options",
+        "entry": "ui/panel.html"
+      }
+    ],
+    "actions": [
+      {
+        "id": "rotate-page",
+        "title": "Rotate page",
+        "shortcut": "Ctrl+Shift+R"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "base manifest",
+      "set": {},
+      "valid": true
+    },
+    {
+      "name": "pre-release version",
+      "set": {
+        "version": "1.0.0-beta.1"
+      },
+      "valid": true
+    },
+    {
+      "name": "uppercase id",
+      "set": {
+        "id": "Com.Example"
+      },
+      "valid": false
+    },
+    {
+      "name": "double dot in id",
+      "set": {
+        "id": "com..example"
+      },
+      "valid": false
+    },
+    {
+      "name": "id too short",
+      "set": {
+        "id": "ab"
+      },
+      "valid": false
+    },
+    {
+      "name": "two-part version",
+      "set": {
+        "version": "1.0"
+      },
+      "valid": false
+    },
+    {
+      "name": "leading zero in version",
+      "set": {
+        "version": "01.0.0"
+      },
+      "valid": false
+    },
+    {
+      "name": "unsupported apiVersion",
+      "set": {
+        "apiVersion": "0.2"
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown permission",
+      "set": {
+        "permissions": [
+          "network"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "duplicate permission",
+      "set": {
+        "permissions": [
+          "ui",
+          "ui"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "entry with ..",
+      "set": {
+        "entry": "../mod.wasm"
+      },
+      "valid": false
+    },
+    {
+      "name": "absolute entry",
+      "set": {
+        "entry": "/mod.wasm"
+      },
+      "valid": false
+    },
+    {
+      "name": "backslash in entry",
+      "set": {
+        "entry": "bin\\mod.wasm"
+      },
+      "valid": false
+    },
+    {
+      "name": "colon in entry",
+      "set": {
+        "entry": "C:mod.wasm"
+      },
+      "valid": false
+    },
+    {
+      "name": "empty segment in entry",
+      "set": {
+        "entry": "a//mod.wasm"
+      },
+      "valid": false
+    },
+    {
+      "name": "entry is not .wasm",
+      "set": {
+        "entry": "mod.js"
+      },
+      "valid": false
+    },
+    {
+      "name": "no worlds",
+      "set": {
+        "worlds": []
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown world",
+      "set": {
+        "worlds": [
+          "gui"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "blank name",
+      "set": {
+        "name": " "
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown field",
+      "set": {
+        "extra": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "uppercase panel id",
+      "set": {
+        "panels": [
+          {
+            "id": "Options",
+            "title": "x",
+            "entry": "p.html"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "dot segment in panel entry",
+      "set": {
+        "panels": [
+          {
+            "id": "options",
+            "title": "x",
+            "entry": "./p.html"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "action id ends with dash",
+      "set": {
+        "actions": [
+          {
+            "id": "a-",
+            "title": "x"
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

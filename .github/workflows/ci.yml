@@ -90,6 +90,10 @@ jobs:
         run: wasm-tools component wit wit/ > /dev/null
       - name: Build the template as a component
         run: bash mods/template/build.sh
+      - name: Check the manifest JSON Schema against the shared cases
+        run: |
+          python3 -m pip install --user "jsonschema==4.25.1"
+          python3 .github/scripts/check-manifest-schema.py
       - name: Check its imports against its manifest
         run: |
           wasm-tools component wit mods/template/rotate_page.wasm > rotate_page.wit

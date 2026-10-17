@@ -12,3 +12,5 @@ accepted = [
 ]
 # Our own crates are not third party.
 private = { ignore = true }
+# Dev-dependencies are not shipped.
+ignore-dev-dependencies = true

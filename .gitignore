@@ -7,3 +7,4 @@ node_modules/
 /spikes/out
 /spikes/wasm-host/guest/target
 /spikes/*/gen
+/spikes/wit-compat/*/target
