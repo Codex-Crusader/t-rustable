@@ -96,7 +96,7 @@ Commands and the mod API never use page indices or object indices. Indices chang
 - The mod API gives `to-display` and `from-display`. They convert between PDF coordinates and display coordinates (pixels, origin at the top left, after rotation and zoom).
 - The host sends pointer events to mods in page coordinates.
 - The UI does display conversion only for drawing. The UI never writes display coordinates into a command.
-- New text and images read upright for the reader. On a rotated page, the core turns them with the page rotation. `AddText` and `AddImage` store the quarter turns, so replay does not depend on this rule. The host draws overlay text and images in the same way.
+- New text and images read upright for the reader (ADR 0017). On a rotated page, the core turns them with the page rotation. `AddText` and `AddImage` store the quarter turns, so replay does not depend on this rule. The host draws overlay text and images in the same way.
 
 ## 5. Commands
 

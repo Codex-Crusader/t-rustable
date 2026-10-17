@@ -22,3 +22,4 @@ Each accepted ADR is a locked decision. It changes only through a new ADR that t
 | 0014 | qpdf binding: the `qpdf` crate, built from source | Accepted |
 | 0015 | Engine operations as data, and a check after each page rewrite | Accepted |
 | 0016 | Licenses of native libraries inside PDFium and qpdf | Accepted (amends 0010) |
+| 0017 | New text and images read upright, and mods can measure text | Accepted |
