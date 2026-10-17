@@ -84,12 +84,13 @@ fn centered(at: Point, (w, h): (f64, f64)) -> Rect {
     }
 }
 
-/// A rectangle from `start` with the width of the drag and the aspect ratio of the image.
+/// A rectangle from `start` toward `at` with the aspect ratio of the image. The larger
+/// side of the drag sets the size, so a drag in any direction works.
 fn dragged(start: Point, at: Point, (w, h): (f64, f64)) -> Rect {
-    let width = (at.x - start.x).abs();
-    let height = width * h / w;
-    let x = start.x + width.copysign(at.x - start.x);
-    let y = start.y + height.copysign(at.y - start.y);
+    let (dx, dy) = (at.x - start.x, at.y - start.y);
+    let scale = (dx.abs() / w).max(dy.abs() / h);
+    let x = start.x + (w * scale).copysign(dx);
+    let y = start.y + (h * scale).copysign(dy);
     Rect::from_corners(start, Point::new(x, y))
 }
 
@@ -224,7 +225,30 @@ export_interactive!(AddImage);
 
 #[cfg(test)]
 mod tests {
-    use super::pixel_size;
+    use super::{dragged, pixel_size};
+    use t_rustable_sdk::types::Point;
+
+    #[test]
+    fn a_drag_in_any_direction_keeps_the_aspect_ratio() {
+        let r = dragged(
+            Point::new(100.0, 100.0),
+            Point::new(100.5, 300.0),
+            (40.0, 20.0),
+        );
+        assert_eq!(
+            [r.left, r.bottom, r.right, r.top],
+            [100.0, 100.0, 500.0, 300.0]
+        );
+        let r = dragged(
+            Point::new(100.0, 100.0),
+            Point::new(20.0, 90.0),
+            (40.0, 20.0),
+        );
+        assert_eq!(
+            [r.left, r.bottom, r.right, r.top],
+            [20.0, 60.0, 100.0, 100.0]
+        );
+    }
 
     #[test]
     fn reads_png_and_jpeg_sizes() {

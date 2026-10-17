@@ -161,8 +161,8 @@ fn page_tools_run_as_a_batch_job() {
     let e = engine();
     let dir = tempfile::tempdir().unwrap();
     let doc = session(&e, dir.path(), 3);
-    // The batch job uses no UI: a UI that panics would show it.
-    let mut host = host(TestUi::new(Duration::ZERO), Limits::default());
+    // The batch job uses no UI: each UI call would panic and fail the call.
+    let mut host = host(Arc::new(PanicUi), Limits::default());
     host.load_dir(&mod_dir(PAGE_TOOLS)).unwrap();
     let [a, b, c] = pages(&doc).try_into().unwrap();
     let run = |host: &mut ModHost, args: &str| {
@@ -355,7 +355,7 @@ fn add_image_places_the_picked_file() {
         .unwrap();
     assert!(!again.value.handled);
 
-    // A drag sets the width, and the image keeps its aspect ratio.
+    // The larger side of the drag sets the size, and the image keeps its aspect ratio.
     action(&mut host, ADD_IMAGE, &doc, "add-image");
     host.on_pointer(
         ADD_IMAGE,
@@ -371,7 +371,7 @@ fn add_image_places_the_picked_file() {
     .unwrap();
     let found = objects(&doc, page);
     assert!(
-        close_to(found[1].1, [200.0, 150.0, 300.0, 200.0], 0.01),
+        close_to(found[1].1, [200.0, 100.0, 400.0, 200.0], 0.01),
         "{:?}",
         found[1].1
     );
@@ -402,6 +402,17 @@ fn the_journal_replays_without_the_mods() {
         pointer(PointerKind::Up, a, 250.0, 120.0, false),
     )
     .unwrap();
+    // Text on the rotated page: replay must use the stored quarter turns.
+    host.load_dir(&mod_dir(ADD_TEXT)).unwrap();
+    host.on_pointer(
+        ADD_TEXT,
+        &doc,
+        pointer(PointerKind::Down, b, 300.0, 100.0, false),
+    )
+    .unwrap();
+    host.on_text_input(ADD_TEXT, &doc, "Replayed").unwrap();
+    host.on_key(ADD_TEXT, &doc, key("Enter")).unwrap();
+    assert_eq!(objects(&doc, b).len(), 1);
 
     let want = snapshot(&mut doc.lock().unwrap());
     let journal = doc.lock().unwrap().journal_dir().to_path_buf();
@@ -553,4 +564,56 @@ fn add_text_follows_a_rotated_page() {
     let found = objects(&doc, page);
     let [left, bottom, right, top] = found[0].1;
     assert!(top - bottom > 2.0 * (right - left), "{:?}", found[0].1);
+}
+
+#[test]
+fn add_image_drags_in_any_direction() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let doc = session(&e, dir.path(), 2);
+    let [flat, turned] = pages(&doc).try_into().unwrap();
+    let file = dir.path().join("picture.png");
+    std::fs::write(&file, png(40, 20)).unwrap();
+    let ui = TestUi::new(Duration::ZERO);
+    let mut host = ModHost::new(services(ui.clone(), Some(file)), Limits::default()).unwrap();
+    host.load_dir(&mod_dir(ADD_IMAGE)).unwrap();
+    host.load_dir(&mod_dir(PAGE_TOOLS)).unwrap();
+    ui.set_active_page(turned);
+    action(&mut host, PAGE_TOOLS, &doc, "rotate-right");
+    let mut drag = |page: PageId, from: (f64, f64), to: (f64, f64)| {
+        action(&mut host, ADD_IMAGE, &doc, "add-image");
+        host.on_pointer(
+            ADD_IMAGE,
+            &doc,
+            pointer(PointerKind::Down, page, from.0, from.1, false),
+        )
+        .unwrap();
+        let up = host
+            .on_pointer(
+                ADD_IMAGE,
+                &doc,
+                pointer(PointerKind::Up, page, to.0, to.1, false),
+            )
+            .unwrap();
+        assert_eq!(up.changes.len(), 1, "{:?}", ui.notes.lock().unwrap());
+    };
+
+    // A vertical drag on a page without rotation: the height sets the size.
+    drag(flat, (100.0, 100.0), (100.5, 200.0));
+    // On a page rotated by 90 degrees, a drag across the screen goes along user y, and the
+    // image width runs along the height of its bounds.
+    drag(turned, (200.0, 200.0), (200.5, 300.0));
+
+    let found = objects(&doc, flat);
+    assert!(
+        close_to(found[0].1, [100.0, 100.0, 300.0, 200.0], 0.01),
+        "{:?}",
+        found[0].1
+    );
+    let found = objects(&doc, turned);
+    assert!(
+        close_to(found[0].1, [200.0, 200.0, 250.0, 300.0], 0.01),
+        "{:?}",
+        found[0].1
+    );
 }

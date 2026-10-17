@@ -149,7 +149,52 @@ pub fn mod_dir(id: &str) -> PathBuf {
     dir
 }
 
-pub fn services(ui: Arc<TestUi>, file: Option<PathBuf>) -> Services {
+/// A UI for batch calls: `context` and `confirm` panic, so a test fails if a batch job
+/// uses them. The host turns the panic into the error `internal`.
+pub struct PanicUi;
+
+impl UiBridge for PanicUi {
+    fn register_action(&self, _: &str, _: Action) -> Result<(), String> {
+        panic!("UI call in a batch job")
+    }
+    fn register_toolbar_item(&self, _: &str, _: ToolbarItem) -> Result<(), String> {
+        panic!("UI call in a batch job")
+    }
+    fn register_panel(&self, _: &str, _: Panel) -> Result<(), String> {
+        panic!("UI call in a batch job")
+    }
+    fn suggest_shortcut(&self, _: &str, _: Shortcut) -> Result<(), String> {
+        panic!("UI call in a batch job")
+    }
+    fn set_overlay(&self, _: &str, _: Vec<OverlayShape>) {
+        panic!("UI call in a batch job")
+    }
+    fn clear_overlay(&self, _: &str) {
+        panic!("UI call in a batch job")
+    }
+    fn register_overlay_image(&self, _: &str, _: Vec<u8>) -> Result<u32, String> {
+        panic!("UI call in a batch job")
+    }
+    fn post_to_panel(&self, _: &str, _: &str, _: &str) -> Result<(), String> {
+        panic!("UI call in a batch job")
+    }
+    fn notify(&self, _: &str, _: NotifyLevel, _: &str) {
+        panic!("UI call in a batch job")
+    }
+    fn confirm(&self, _: &str, _: &str, _: &str) -> bool {
+        panic!("UI call in a batch job")
+    }
+    fn context(&self, _: &str) -> UiContext {
+        panic!("UI call in a batch job")
+    }
+    fn display_scale(&self, _: types::PageId) -> Option<f64> {
+        None
+    }
+    fn log(&self, _: &str, _: LogLevel, _: &str) {}
+    fn progress(&self, _: &str, _: f32, _: &str) {}
+}
+
+pub fn services(ui: Arc<dyn UiBridge>, file: Option<PathBuf>) -> Services {
     Services {
         ui,
         files: Arc::new(OneFile(file)),
@@ -158,7 +203,7 @@ pub fn services(ui: Arc<TestUi>, file: Option<PathBuf>) -> Services {
     }
 }
 
-pub fn host(ui: Arc<TestUi>, limits: Limits) -> ModHost {
+pub fn host(ui: Arc<dyn UiBridge>, limits: Limits) -> ModHost {
     ModHost::new(services(ui, None), limits).unwrap()
 }
 
