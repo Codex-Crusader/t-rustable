@@ -23,7 +23,7 @@ function ipcFetch(base) {
 }
 
 function send(message) {
-  parent.postMessage({ type: "t-rustable", message }, "*");
+  parent.postMessage(message, "*");
 }
 
 async function run() {
@@ -96,7 +96,7 @@ async function run() {
 }
 
 window.addEventListener("message", (event) => {
-  if (event.source !== parent || event.data?.type !== "t-rustable") return;
-  if (String(event.data.message).startsWith('echo:{')) send("ack");
+  if (event.source !== parent || typeof event.data !== "string") return;
+  if (event.data.startsWith("echo:{")) send("ack");
 });
 run();

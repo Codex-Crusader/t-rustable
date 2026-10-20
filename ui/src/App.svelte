@@ -40,6 +40,18 @@
     ),
   );
 
+  /** Toolbar items that mods registered for actions that are not tools. */
+  const toolbarItems = $derived(
+    app.mods.flatMap((m) =>
+      m.disabled
+        ? []
+        : m.toolbar.flatMap((t) => {
+            const a = m.actions.find((x) => x.id === t.actionId && !x.tool);
+            return a ? [{ modId: m.id, action: a, tooltip: t.tooltip }] : [];
+          }),
+    ),
+  );
+
   const THEMES: Theme[] = ["light", "dark", "high-contrast"];
 
   /** App actions. Their IDs are the keys in keymap.json. */
@@ -159,6 +171,13 @@
         aria-pressed={app.tool?.modId === t.modId && app.tool.actionId === t.action.id}
         title={t.action.description}
         onclick={() => void app.selectTool(t.modId, t.action.id, t.action.title)}>{t.action.title}</button
+      >
+    {/each}
+    {#each toolbarItems as t (`${t.modId}/${t.action.id}`)}
+      <button
+        title={t.tooltip}
+        disabled={!app.tab}
+        onclick={() => void app.runAction(t.modId, t.action.id, t.action.title, false)}>{t.action.title}</button
       >
     {/each}
   </div>

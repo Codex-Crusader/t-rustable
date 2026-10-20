@@ -19,10 +19,8 @@
   // Panel to mod. The source check makes sure that the message comes from this iframe.
   $effect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (!frame || e.source !== frame.contentWindow) return;
-      const data = e.data as { type?: unknown; message?: unknown } | null;
-      if (data?.type !== "t-rustable" || typeof data.message !== "string") return;
-      api.panelMessage(modId, panelId, data.message).catch((err) => app.fail(err));
+      if (!frame || e.source !== frame.contentWindow || typeof e.data !== "string") return;
+      api.panelMessage(modId, panelId, e.data).catch((err) => app.fail(err));
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -32,7 +30,7 @@
   $effect(() => {
     const unlisten = on("panel-message", (e) => {
       if (e.modId !== modId || e.panelId !== panelId) return;
-      frame?.contentWindow?.postMessage({ type: "t-rustable", message: e.message }, "*");
+      frame?.contentWindow?.postMessage(e.message, "*");
     });
     return () => void unlisten.then((f) => f());
   });
