@@ -88,10 +88,16 @@ pub fn stream(content: &str) -> String {
 
 /// Blank pages with the given sizes. Content streams are empty.
 pub fn blank_pdf(sizes: &[(f64, f64)]) -> Vec<u8> {
+    build_pdf(&blank_objects(sizes, ""))
+}
+
+/// Objects of `blank_pdf`. `catalog` adds entries to the catalog. Page `i` is object
+/// `3 + 2 * i`, and the next free object is `3 + 2 * sizes.len()`.
+pub fn blank_objects(sizes: &[(f64, f64)], catalog: &str) -> Vec<String> {
     let n = sizes.len();
     let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 3 + 2 * i)).collect();
     let mut objects = vec![
-        "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+        format!("<< /Type /Catalog /Pages 2 0 R {catalog}>>"),
         format!("<< /Type /Pages /Kids [{}] /Count {n} >>", kids.join(" ")),
     ];
     for (i, (w, h)) in sizes.iter().enumerate() {
@@ -101,6 +107,27 @@ pub fn blank_pdf(sizes: &[(f64, f64)]) -> Vec<u8> {
         ));
         objects.push(stream(""));
     }
+    objects
+}
+
+/// Three blank pages and an outline with two levels:
+///
+/// - "Chapter 1" goes to page 1. Its children are "Section 1.1", which goes to page 2
+///   through a GoTo action, and "No destination".
+/// - "Café" goes to page 3. Its title is UTF-16.
+pub fn outline_pdf() -> Vec<u8> {
+    let mut objects = blank_objects(&[(200.0, 200.0); 3], "/Outlines 9 0 R ");
+    objects.extend([
+        "<< /Type /Outlines /First 10 0 R /Last 13 0 R /Count 4 >>".into(),
+        "<< /Title (Chapter 1) /Parent 9 0 R /Next 13 0 R /First 11 0 R /Last 12 0 R \
+         /Count 2 /Dest [3 0 R /Fit] >>"
+            .into(),
+        "<< /Title (Section 1.1) /Parent 10 0 R /Next 12 0 R \
+         /A << /S /GoTo /D [5 0 R /XYZ 0 200 0] >> >>"
+            .into(),
+        "<< /Title (No destination) /Parent 10 0 R /Prev 11 0 R >>".into(),
+        "<< /Title <FEFF00430061006600E9> /Parent 9 0 R /Prev 10 0 R /Dest [7 0 R /Fit] >>".into(),
+    ]);
     build_pdf(&objects)
 }
 

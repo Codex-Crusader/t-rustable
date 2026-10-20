@@ -235,6 +235,15 @@ pub struct DocSummary {
     pub metadata: Metadata,
 }
 
+/// One bookmark of the document outline.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OutlineItem {
+    pub title: String,
+    /// The page that the bookmark goes to. None if it has no destination in this document.
+    pub page: Option<usize>,
+    pub children: Vec<OutlineItem>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SearchOptions {
     pub match_case: bool,
@@ -266,6 +275,8 @@ pub enum Query {
         options: SearchOptions,
     },
     FormFields,
+    /// The bookmarks. The engine stops at 64 levels and at 10,000 items.
+    Outline,
 }
 
 /// Part of a page, in device pixels after scaling. Used for tiles.
@@ -352,6 +363,7 @@ pub enum Response {
     PageText(String),
     SearchHits(Vec<SearchHit>),
     FormFields(Vec<FormField>),
+    Outline(Vec<OutlineItem>),
     Rendered(Bitmap),
 }
 

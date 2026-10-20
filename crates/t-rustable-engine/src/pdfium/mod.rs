@@ -5,11 +5,11 @@ mod ffi;
 
 use crate::protocol::{
     AnnotationInfo, Bitmap, CharInfo, Clip, EngineError, FieldKind, FormField, ImageData, Metadata,
-    ObjectInfo, ObjectKind, PageInfo, PathSegment, Point, Rect, Rgba, Stroke, TextRun,
+    ObjectInfo, ObjectKind, OutlineItem, PageInfo, PathSegment, Point, Rect, Rgba, Stroke, TextRun,
 };
 use ffi::{Fns, Handle, WChar};
 use libloading::Library;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CString, c_int, c_ulong, c_void};
 use std::path::Path;
 use std::rc::Rc;
@@ -373,7 +373,66 @@ impl Document {
         }
         Ok(out)
     }
+
+    /// The bookmarks as a tree. Stops quietly at a cycle, at 64 levels, or at 10,000 items.
+    pub fn outline(&self) -> Vec<OutlineItem> {
+        self.outline_children(std::ptr::null_mut(), 1, &mut HashSet::new())
+    }
+
+    fn outline_children(
+        &self,
+        parent: Handle,
+        depth: usize,
+        seen: &mut HashSet<Handle>,
+    ) -> Vec<OutlineItem> {
+        let f = self.f();
+        let mut out = Vec::new();
+        if depth > MAX_OUTLINE_DEPTH {
+            return out;
+        }
+        // SAFETY: `h` is an open document. `parent` is null or one of its bookmarks.
+        let mut b = unsafe { (f.bookmark_first_child)(self.h, parent) };
+        // A visited bookmark means a cycle.
+        while !b.is_null() && seen.len() < MAX_OUTLINE_ITEMS && seen.insert(b) {
+            // SAFETY: the buffer has `len` bytes.
+            let title =
+                read_wide(|buf, len| unsafe { (f.bookmark_get_title)(b, buf as *mut c_void, len) })
+                    .unwrap_or_default();
+            out.push(OutlineItem {
+                title,
+                page: self.bookmark_page(b),
+                children: self.outline_children(b, depth + 1, seen),
+            });
+            // SAFETY: `b` is a bookmark of this document.
+            b = unsafe { (f.bookmark_next_sibling)(self.h, b) };
+        }
+        out
+    }
+
+    /// The page of the bookmark destination, else of its GoTo action.
+    fn bookmark_page(&self, b: Handle) -> Option<usize> {
+        let f = self.f();
+        // SAFETY: `b` is a bookmark of this document. The action lives as long as `b`.
+        let index = unsafe {
+            let mut dest = (f.bookmark_get_dest)(self.h, b);
+            if dest.is_null() {
+                let action = (f.bookmark_get_action)(b);
+                if !action.is_null() && (f.action_get_type)(action) == ffi::PDFACTION_GOTO {
+                    dest = (f.action_get_dest)(self.h, action);
+                }
+            }
+            if dest.is_null() {
+                return None;
+            }
+            (f.dest_get_page_index)(self.h, dest)
+        };
+        usize::try_from(index).ok()
+    }
 }
+
+/// Limits for malformed outlines.
+const MAX_OUTLINE_DEPTH: usize = 64;
+const MAX_OUTLINE_ITEMS: usize = 10_000;
 
 impl Drop for Document {
     fn drop(&mut self) {

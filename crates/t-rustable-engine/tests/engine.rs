@@ -821,3 +821,97 @@ fn qpdf_post_process_keeps_render_and_text() {
         assert_eq!(render(&e, 2, page, 1.0), render(&e, 3, page, 1.0));
     }
 }
+
+fn outline(e: &Engine, doc: DocKey) -> Vec<OutlineItem> {
+    match query(e, doc, Query::Outline) {
+        Response::Outline(o) => o,
+        r => panic!("{r:?}"),
+    }
+}
+
+fn item(title: &str, page: Option<usize>, children: Vec<OutlineItem>) -> OutlineItem {
+    OutlineItem {
+        title: title.into(),
+        page,
+        children,
+    }
+}
+
+#[test]
+fn outline_gives_the_bookmark_tree() {
+    let e = engine();
+    open(&e, 1, outline_pdf());
+    assert_eq!(
+        outline(&e, 1),
+        [
+            item(
+                "Chapter 1",
+                Some(0),
+                vec![
+                    item("Section 1.1", Some(1), vec![]),
+                    item("No destination", None, vec![]),
+                ]
+            ),
+            item("Café", Some(2), vec![]),
+        ]
+    );
+    open(&e, 2, blank_pdf(&[(100.0, 100.0)]));
+    assert_eq!(outline(&e, 2), []);
+}
+
+#[test]
+fn outline_stops_at_cycles_and_limits() {
+    let e = engine();
+    // "B" is a child of "A", and its /First goes back to "A". The /Next of "C" goes back
+    // to "B".
+    let mut objects = blank_objects(&[(100.0, 100.0)], "/Outlines 5 0 R ");
+    objects.extend([
+        "<< /Type /Outlines /First 6 0 R /Last 6 0 R >>".into(),
+        "<< /Title (A) /Parent 5 0 R /First 7 0 R /Last 8 0 R /Dest [3 0 R /Fit] >>".into(),
+        "<< /Title (B) /Parent 6 0 R /First 6 0 R /Last 6 0 R /Next 8 0 R >>".into(),
+        "<< /Title (C) /Parent 6 0 R /Prev 7 0 R /Next 7 0 R >>".into(),
+    ]);
+    open(&e, 1, build_pdf(&objects));
+    assert_eq!(
+        outline(&e, 1),
+        [item(
+            "A",
+            Some(0),
+            vec![item("B", None, vec![]), item("C", None, vec![])]
+        )]
+    );
+
+    // 100 levels: the outline stops at 64.
+    let mut objects = blank_objects(&[(100.0, 100.0)], "/Outlines 5 0 R ");
+    objects.push("<< /Type /Outlines /First 6 0 R >>".into());
+    for i in 0..100 {
+        let first = if i < 99 {
+            format!("/First {} 0 R", 7 + i)
+        } else {
+            String::new()
+        };
+        objects.push(format!("<< /Title (L{i}) /Parent {} 0 R {first} >>", 5 + i));
+    }
+    open(&e, 2, build_pdf(&objects));
+    let mut depth = 0;
+    let mut level = outline(&e, 2);
+    while let Some(first) = level.into_iter().next() {
+        depth += 1;
+        level = first.children;
+    }
+    assert_eq!(depth, 64);
+
+    // 10,050 items on one level: the outline stops at 10,000.
+    let mut objects = blank_objects(&[(100.0, 100.0)], "/Outlines 5 0 R ");
+    objects.push("<< /Type /Outlines /First 6 0 R >>".into());
+    for i in 0..10_050 {
+        let next = if i < 10_049 {
+            format!("/Next {} 0 R", 7 + i)
+        } else {
+            String::new()
+        };
+        objects.push(format!("<< /Title (I{i}) /Parent 5 0 R {next} >>"));
+    }
+    open(&e, 3, build_pdf(&objects));
+    assert_eq!(outline(&e, 3).len(), 10_000);
+}

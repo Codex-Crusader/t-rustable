@@ -20,6 +20,7 @@ pub const FPDF_FORMFLAG_READONLY: c_int = 1;
 pub const FPDF_FILLMODE_NONE: c_int = 0;
 pub const FPDF_FILLMODE_WINDING: c_int = 2;
 pub const FPDFBITMAP_BGRA: c_int = 4;
+pub const PDFACTION_GOTO: c_ulong = 1;
 
 #[repr(C)]
 pub struct FileWrite {
@@ -166,6 +167,15 @@ pdfium_fns! {
     annot_get_form_field_flags = "FPDFAnnot_GetFormFieldFlags": fn(Handle, Handle) -> c_int;
     form_init = "FPDFDOC_InitFormFillEnvironment": fn(Handle, *mut FormFillInfo) -> Handle;
     form_exit = "FPDFDOC_ExitFormFillEnvironment": fn(Handle);
+
+    bookmark_first_child = "FPDFBookmark_GetFirstChild": fn(Handle, Handle) -> Handle;
+    bookmark_next_sibling = "FPDFBookmark_GetNextSibling": fn(Handle, Handle) -> Handle;
+    bookmark_get_title = "FPDFBookmark_GetTitle": fn(Handle, *mut c_void, c_ulong) -> c_ulong;
+    bookmark_get_dest = "FPDFBookmark_GetDest": fn(Handle, Handle) -> Handle;
+    bookmark_get_action = "FPDFBookmark_GetAction": fn(Handle) -> Handle;
+    action_get_type = "FPDFAction_GetType": fn(Handle) -> c_ulong;
+    action_get_dest = "FPDFAction_GetDest": fn(Handle, Handle) -> Handle;
+    dest_get_page_index = "FPDFDest_GetDestPageIndex": fn(Handle, Handle) -> c_int;
 
     bitmap_create_ex = "FPDFBitmap_CreateEx": fn(c_int, c_int, c_int, *mut c_void, c_int) -> Handle;
     bitmap_fill_rect = "FPDFBitmap_FillRect": fn(Handle, c_int, c_int, c_int, c_int, c_ulong) -> Bool;

@@ -116,6 +116,7 @@ fn query_doc(d: &mut Document, query: Query, cancel: &AtomicBool) -> Result<Resp
         Query::TextRuns { page } => Response::TextRuns(d.page(page)?.text_runs()?),
         Query::PageText { page } => Response::PageText(d.page(page)?.text()?),
         Query::FormFields => Response::FormFields(d.form_fields()?),
+        Query::Outline => Response::Outline(d.outline()),
         Query::Search { query, options } => {
             if query.is_empty() {
                 return Err(EngineError::InvalidArgument(

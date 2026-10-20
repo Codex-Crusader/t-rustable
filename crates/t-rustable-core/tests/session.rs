@@ -4,7 +4,9 @@ use t_rustable_core::command::{Command, Shape};
 use t_rustable_core::error::code;
 use t_rustable_core::fonts::Fonts;
 use t_rustable_core::{AssetId, ObjectId, OpenOptions, PageId, SaveOptions, Session};
-use t_rustable_engine::testing::{blank_pdf, build_pdf, engine, png, stream};
+use t_rustable_engine::testing::{
+    blank_objects, blank_pdf, build_pdf, engine, outline_pdf, png, stream,
+};
 use t_rustable_engine::{Engine, Point, Priority, Rect, Request, Rgba, Stroke};
 
 const RED: Rgba = Rgba {
@@ -515,5 +517,43 @@ fn text_width_matches_the_engine_layout() {
         (moved - width).abs() < 0.05,
         "engine {moved}, measure {width}"
     );
+    s.close().unwrap();
+}
+
+#[test]
+fn outline_maps_pages_to_ids() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = open(&e, dir.path(), outline_pdf());
+    let [p0, p1, p2] = [s.page_ids()[0], s.page_ids()[1], s.page_ids()[2]];
+    let pages = |s: &mut Session| {
+        let o = s.outline().unwrap();
+        let c = &o[0].children;
+        [o[0].page, c[0].page, c[1].page, o[1].page]
+    };
+    assert_eq!(pages(&mut s), [Some(p0), Some(p1), None, Some(p2)]);
+    assert_eq!(s.outline().unwrap()[1].title, "Café");
+
+    // The bookmarks follow the pages when the order changes.
+    commit(
+        &mut s,
+        vec![Command::MovePage {
+            page: p1,
+            before: Some(p0),
+        }],
+    )
+    .unwrap();
+    assert_eq!(s.page_ids(), [p1, p0, p2]);
+    assert_eq!(pages(&mut s), [Some(p0), Some(p1), None, Some(p2)]);
+    s.close().unwrap();
+
+    // A destination to a page number that does not exist gives no page.
+    let mut objects = blank_objects(&[(100.0, 100.0)], "/Outlines 5 0 R ");
+    objects.extend([
+        "<< /Type /Outlines /First 6 0 R >>".into(),
+        "<< /Title (Far) /Parent 5 0 R /Dest [99 /Fit] >>".into(),
+    ]);
+    let mut s = open(&e, dir.path(), build_pdf(&objects));
+    assert_eq!(s.outline().unwrap()[0].page, None);
     s.close().unwrap();
 }

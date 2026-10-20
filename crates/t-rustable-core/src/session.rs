@@ -16,7 +16,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use t_rustable_engine::{
     AnnotationInfo, Applied, Bitmap, Clip, DocKey, EditOp, Engine, EngineError, FormField,
-    Metadata, ObjectInfo, PageInfo, Priority, Query, Request, Response, SearchOptions, TextRun,
+    Metadata, ObjectInfo, OutlineItem, PageInfo, Priority, Query, Request, Response, SearchOptions,
+    TextRun,
 };
 
 /// A checkpoint every K transactions (ARCHITECTURE section 7).
@@ -112,6 +113,15 @@ pub struct Hit {
     pub page: PageId,
     pub text: String,
     pub boxes: Vec<t_rustable_engine::Rect>,
+}
+
+/// One bookmark of the document outline.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OutlineEntry {
+    pub title: String,
+    /// None if the bookmark has no destination in this document.
+    pub page: Option<PageId>,
+    pub children: Vec<OutlineEntry>,
 }
 
 /// Reads pages of the live document and keeps their IDs in the live `IdMap`.
@@ -822,6 +832,14 @@ impl Session {
             .collect()
     }
 
+    /// The bookmarks, with the pages as IDs.
+    pub fn outline(&mut self) -> Result<Vec<OutlineEntry>> {
+        let Response::Outline(items) = self.query(Query::Outline)? else {
+            return Err(CoreError::internal("no outline"));
+        };
+        Ok(outline_entries(&self.ids, items))
+    }
+
     pub fn metadata(&mut self) -> Result<Metadata> {
         match self.query(Query::Summary)? {
             Response::Summary(s) => Ok(s.metadata),
@@ -890,6 +908,17 @@ fn zip_ids<T>(ids: &[ObjectId], infos: Vec<T>) -> Result<Vec<Identified<T>>> {
         .zip(infos)
         .map(|(id, info)| Identified { id: *id, info })
         .collect())
+}
+
+fn outline_entries(ids: &IdMap, items: Vec<OutlineItem>) -> Vec<OutlineEntry> {
+    items
+        .into_iter()
+        .map(|i| OutlineEntry {
+            title: i.title,
+            page: i.page.and_then(|p| ids.pages.get(p)).map(|p| p.id),
+            children: outline_entries(ids, i.children),
+        })
+        .collect()
 }
 
 fn change(tx: &Committed) -> Change {
