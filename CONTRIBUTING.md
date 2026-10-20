@@ -30,7 +30,28 @@ You need Rust 1.96 or later, a C++ compiler (for the vendored qpdf), and bash. O
    cargo xtask build-mods
    ```
 
-If you skip step 2 or step 3, the tests that need PDFium or the mods fail with a message that names the command to run. They do not skip. After you change a mod or `wit/`, run step 3 again.
+4. Install Node.js 22 or later. Then install the UI packages and build the UI into `ui/dist/`. The app embeds this folder, so cargo cannot build the app without it.
+
+   ```
+   cd ui
+   npm ci
+   npm run build
+   cd ..
+   ```
+
+If you skip step 2 or step 3, the tests that need PDFium or the mods fail with a message that names the command to run. They do not skip. After you change a mod or `wit/`, run step 3 again. After you change `ui/`, run `npm run build` again, or keep `npm run watch` open.
+
+Start the app with a PDF file:
+
+```
+cargo run -p t-rustable-app -- path/to/file.pdf
+```
+
+The GUI self-test opens a generated PDF, runs the built-in mods through the UI code, checks the panel sandbox, saves, and writes a JSON report. It uses a separate home folder, so it does not touch your settings:
+
+```
+T_RUSTABLE_HOME=target/self-test cargo run -p t-rustable-app -- --self-test
+```
 
 The mods in `mods/builtin/` and `mods/fixtures/` are a second workspace, `mods/Cargo.toml`. The template in `mods/template/` is its own workspace, so that a mod author can copy it.
 
@@ -94,6 +115,7 @@ cargo test --manifest-path mods/Cargo.toml
 cargo deny check
 cargo deny --manifest-path mods/Cargo.toml check
 reuse lint
+(cd ui && npm run check && npm test)
 ```
 
 Also:

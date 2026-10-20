@@ -193,8 +193,10 @@ The UI shows pages as tiles.
 - Tile size: 512 by 512 device pixels.
 - Zoom buckets: the engine renders at fixed scales (start values: 25, 50, 100, 200, 400 percent, multiplied by the device pixel ratio). Between buckets, the UI scales the tiles of the nearest bucket with CSS. When zoom stops, the UI requests tiles at the correct bucket.
 - Two passes: first a fast low-resolution pass for the full visible area, then full-quality tiles. The user sees something at once.
-- Priority: visible tiles are `Interactive`. Tiles near the viewport are `Background` prefetch. Tiles that leave the viewport are cancelled.
-- Cache: an LRU cache with a memory budget holds encoded tiles. The key is session, `PageId`, page revision, bucket, and tile position.
+- Areas: the low-resolution pass covers each page within 600 CSS pixels of the view. The full-quality pass covers the visible area only. Tiles that leave the view before they load are cancelled (`cancel_tiles`).
+- Priority: tiles are `Interactive`. Thumbnails use the same tiles at a small scale, so they share the cache with the low-resolution pass.
+- Lock: a render does not hold the session lock. `Session::submit_render` resolves the page under the lock and returns a `RenderTicket`. The tile handler waits for the ticket. After `engine-restarted`, it submits the render one more time.
+- Cache: an LRU cache with a budget of 256 MB holds the PNG data. The key is the document, the `PageId`, the page revision, the render scale, and the tile position.
 - Invalidation: each transaction reports its affected `PageId`s. Only those pages get a new revision. Their old tiles leave the cache. Other tiles stay.
 - Encoding: PNG with `Fast` compression. M1 measured less than 1 ms per tile.
 
@@ -208,7 +210,8 @@ Three channels connect the Svelte UI to the Rust core:
 |---|---|---|
 | Tauri `invoke` | UI to core | Requests: open, submit a transaction, run a mod action, save, undo. Each returns a result. |
 | Tauri events | Core to UI | Notifications: `document-changed` with affected pages, progress, mod overlays, errors. |
-| Custom URI scheme | UI to core | Tile images. An `<img>` loads a URL like `trtile://localhost/<session>/<page-id>/<revision>/<bucket>/<x>_<y>.png`. The revision in the URL prevents stale tiles. |
+| Custom URI scheme `trtile` | UI to core | Tile images. An `<img>` loads a URL like `trtile://localhost/<doc>/<page-id>/<revision>/<scale>/<x>_<y>.png`. `scale` is device pixels per point times 1000. The revision in the URL prevents stale tiles. |
+| Custom URI scheme `trpanel` | Panel to core | The files of mod panels, at `/<mod-id>/<file>`. |
 
 Verified in M1 (`docs/spikes/m1-report.md`):
 
@@ -217,11 +220,24 @@ Verified in M1 (`docs/spikes/m1-report.md`):
 - A mod panel loaded from a custom scheme URL with `sandbox="allow-scripts"` cannot reach Tauri IPC or the host page. Never add `allow-same-origin`. The panel CSP must list the panel scheme in `script-src`, because `'self'` does not match it in a sandboxed panel on WebKitGTK.
 - The host accepts a panel message only when `event.source` is the `contentWindow` of that panel. The origin of a sandboxed panel is always `null`.
 
+Threads (ADR 0018):
+
+- The main thread runs the window and never blocks.
+- One mod thread owns `ModHost`. A command sends a closure to it and waits on a thread of the blocking pool. `ui.confirm` and `files.pick` block only the mod thread.
+- The engine thread owns PDFium, as before.
+
+Events from the core: `document-changed` (document ID, affected pages, structure flag), `overlay`, `notify`, `confirm-request`, `progress`, `registry-changed`, `panel-message`, and `close-requested`.
+
+Coordinates: all conversion is in Rust, with `PageView` at zoom 1. The UI gets and sends display points at zoom 1 and multiplies them by its CSS scale. Mods get native PDF points, as before.
+
+Context: the UI pushes a snapshot of the active document, page, selection, and zoom on each change (`set_context`). `ui.context` reads this snapshot.
+
 Mod panels:
 
-- Each mod panel runs in an `<iframe sandbox="allow-scripts">` with a strict CSP. The iframe has no Tauri IPC (verified in M1).
-- The panel sends `postMessage` to the host page. The host page checks the source frame and forwards the message to the mod through `invoke`. The mod replies through the host.
-- Panel messages are JSON strings.
+- Each mod panel runs in an `<iframe sandbox="allow-scripts">`. The iframe has no Tauri IPC (verified in M1, and by the GUI self-test).
+- The `trpanel` scheme serves only `.html`, `.css`, `.js`, `.svg`, `.png`, `.woff2`, and `.json` files, and only inside the folder of a loaded mod. Each response has the panel CSP.
+- The scheme puts a link to the virtual file `t-rustable-theme.css` into the head of each HTML file. It holds the `--tr-*` theme variables. Panels load again when the theme changes.
+- The panel sends a JSON string with `postMessage` to the host page. The host page checks the source frame and forwards the string to the mod of that panel through `invoke`. The mod replies through the host, and the panel gets the string as a `message` event.
 
 ## 12. Storage folders
 
@@ -266,7 +282,12 @@ Accessibility is a v1 requirement.
 
 - Each page has a text layer with real text and character positions. It is used for selection and search, and screen readers read it.
 - Each mod overlay shape has a required `label`. The host gives the label to screen readers.
-- Each action is available from the keyboard and from the command palette.
+- Each action is available from the keyboard and from the command palette (Ctrl+K). The palette is a combobox with a list of options.
+- Shortcuts come from the app defaults, then `keymap.json`, then the suggestions of the mods. A shortcut needs Ctrl, Alt, or Meta, or an F key, so it never takes typed text.
+- The page thumbnails are a list box with multiple selection: the arrow keys, Home, End, Space, Shift, and Ctrl.
+- A polite live region reads the labels of new overlay shapes, notices, and the number of search results.
+- A tool gets typed text from a hidden text field that has focus while the tool is active. Input method composition works.
+- Open item: pointer tools have no keyboard method yet. A user cannot draw a shape with the keyboard only.
 - The app respects the reduce motion setting of the operating system.
 - There is a high-contrast theme. Theme values are CSS variables, and the host injects them into mod panels.
 - All UI strings are in one file, so they can be translated later.

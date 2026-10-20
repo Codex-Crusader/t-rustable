@@ -56,6 +56,7 @@ The GUI and the CLI get these codes from the core. A mod can get the first four 
 | `password-required` | The document is encrypted. Open it again with the password. |
 | `damaged-file` | The file is not a PDF file, or it is too damaged to open. |
 | `io-error` | A file operation failed. `details` has the system error. |
+| `unsaved-changes` | The document has changes that are not saved. The GUI asks the user before it closes the document. |
 | `nothing-to-undo` | There is no transaction to undo. |
 | `nothing-to-redo` | There is no transaction to redo. |
 | `replay-failed` | A recovered journal does not replay on the original document, for example because the original changed. |
