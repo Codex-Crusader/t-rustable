@@ -10,6 +10,6 @@
   "entry": "add_image.wasm",
   "worlds": ["interactive"],
   "actions": [
-    { "id": "add-image", "title": "Add image", "description": "Opens a file dialog for a PNG or JPEG image." }
+    { "id": "add-image", "title": "Add image", "description": "Opens a file dialog for a PNG or JPEG image.", "tool": true }
   ]
 }

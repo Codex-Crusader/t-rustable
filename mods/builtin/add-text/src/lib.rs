@@ -128,6 +128,10 @@ impl Tool for AddText {
     }
 
     fn run_action(document: Option<&Doc>, action_id: String, args: String) -> Result<(), ApiError> {
+        // The tool action needs no work. The host makes this mod the active tool.
+        if action_id == "text" {
+            return Ok(());
+        }
         if action_id != "add-text" {
             return Err(api_error(
                 "unknown-action",

@@ -17,7 +17,7 @@ Each mod has a `manifest.json`. The schema is [manifest.schema.json](manifest.sc
 | `entry` | yes | Relative path of the `.wasm` component in the package. |
 | `worlds` | yes | `interactive`, `batch`, or both. |
 | `panels` | no | `id`, `title`, `entry` (relative path of an `.html` file). |
-| `actions` | no | `id`, `title`, `description`, `shortcut` (a suggestion). |
+| `actions` | no | `id`, `title`, `description`, `shortcut` (a suggestion), `tool`. |
 
 Paths use forward slashes. They cannot start with `/`, contain `\` or `:`, or have empty, `.`, or `..` parts.
 
@@ -27,6 +27,7 @@ Paths use forward slashes. They cannot start with `/`, contain `\` or `:`, or ha
 - Panels and actions need the `interactive` world.
 - Panels need the `ui` permission.
 - Panel IDs and action IDs are unique in the mod.
+- `tool: true` marks an action that starts a pointer tool, for example "Rectangle". When the user selects it, the host calls `activate` (if the mod is not the active tool yet) and then `run-action`. Then the mod gets the pointer and key events until the user selects another tool. An action without `tool` is a command that runs once, for example "Rotate right", and the active tool does not change. Actions that a mod registers with `ui.register-action` are commands.
 
 ## Example
 

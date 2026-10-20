@@ -52,6 +52,10 @@ pub struct Action {
     /// For example "Ctrl+Shift+R". The user decides the final shortcut.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shortcut: Option<String>,
+    /// True if the action starts a pointer tool. The mod then gets pointer and key
+    /// events until the user selects another tool. False for a command that runs once.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tool: bool,
 }
 
 /// The API versions that this SDK accepts in `apiVersion`.
@@ -270,6 +274,13 @@ mod tests {
             ]
         );
         assert_eq!(m.worlds, [World::Interactive]);
+    }
+
+    #[test]
+    fn tool_actions() {
+        assert!(!Manifest::parse(GOOD).unwrap().actions[0].tool);
+        let tool = GOOD.replace("\"Rotate page\" }", "\"Rotate page\", \"tool\": true }");
+        assert!(Manifest::parse(&tool).unwrap().actions[0].tool);
     }
 
     #[test]

@@ -10,6 +10,7 @@
   "entry": "add_text.wasm",
   "worlds": ["interactive"],
   "actions": [
+    { "id": "text", "title": "Text", "description": "Click on a page and type. Enter adds the text, and Escape cancels.", "tool": true },
     { "id": "add-text", "title": "Add text", "description": "Adds text at a position on the active page. Arguments: x, y, text, and size." }
   ]
 }

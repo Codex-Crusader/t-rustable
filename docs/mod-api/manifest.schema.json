@@ -76,6 +76,10 @@
             "description": "Suggested shortcut, for example Ctrl+Shift+R. The user decides.",
             "type": "string",
             "maxLength": 40
+          },
+          "tool": {
+            "description": "True if the action starts a pointer tool. False (the default) for a command that runs once.",
+            "type": "boolean"
           }
         }
       }

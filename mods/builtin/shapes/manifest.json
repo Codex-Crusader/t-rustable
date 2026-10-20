@@ -10,8 +10,8 @@
   "entry": "shapes.wasm",
   "worlds": ["interactive"],
   "actions": [
-    { "id": "rectangle", "title": "Rectangle", "description": "Drag on a page to draw a rectangle." },
-    { "id": "ellipse", "title": "Ellipse", "description": "Drag on a page to draw an ellipse." },
-    { "id": "line", "title": "Line", "description": "Drag on a page to draw a line." }
+    { "id": "rectangle", "title": "Rectangle", "description": "Drag on a page to draw a rectangle.", "tool": true },
+    { "id": "ellipse", "title": "Ellipse", "description": "Drag on a page to draw an ellipse.", "tool": true },
+    { "id": "line", "title": "Line", "description": "Drag on a page to draw a line.", "tool": true }
   ]
 }
