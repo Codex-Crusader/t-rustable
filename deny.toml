@@ -12,6 +12,11 @@ targets = [
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # Unmaintained, not a vulnerability. A build-time macro crate that comes in
+    # through gtk 0.18, which Tauri uses on Linux. Remove when Tauri moves to gtk4.
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via gtk 0.18 in Tauri, Linux build only" },
+]
 
 [licenses]
 confidence-threshold = 0.93

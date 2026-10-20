@@ -10,3 +10,4 @@ node_modules/
 /spikes/*/gen
 /spikes/wit-compat/*/target
 /mods/target
+/crates/t-rustable-app/gen/

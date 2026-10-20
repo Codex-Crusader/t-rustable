@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Core permissions for the main window only. Dialogs open from Rust, so the page has no dialog permission.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
