@@ -18,6 +18,7 @@ pub mod code {
     pub const NOTHING_TO_UNDO: &str = "nothing-to-undo";
     pub const NOTHING_TO_REDO: &str = "nothing-to-redo";
     pub const REPLAY_FAILED: &str = "replay-failed";
+    pub const ENGINE_RESTARTED: &str = "engine-restarted";
     pub const CANCELLED: &str = "cancelled";
     pub const INTERNAL: &str = "internal";
 }

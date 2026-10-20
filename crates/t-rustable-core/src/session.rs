@@ -13,11 +13,11 @@ use crate::journal::{self, Entry, Journal, Manifest};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use t_rustable_engine::{
     AnnotationInfo, Applied, Bitmap, Clip, DocKey, EditOp, Engine, EngineError, FormField,
     Metadata, ObjectInfo, OutlineItem, PageInfo, Priority, Query, Request, Response, SearchOptions,
-    TextRun,
+    TextRun, Ticket,
 };
 
 /// A checkpoint every K transactions (ARCHITECTURE section 7).
@@ -122,6 +122,38 @@ pub struct OutlineEntry {
     /// None if the bookmark has no destination in this document.
     pub page: Option<PageId>,
     pub children: Vec<OutlineEntry>,
+}
+
+/// A render in the engine queue. It does not hold the session, so another thread can
+/// wait for it.
+pub struct RenderTicket {
+    ticket: Ticket,
+}
+
+impl RenderTicket {
+    /// Cancels the render. `wait` then gives `cancelled`.
+    pub fn cancel(&self) {
+        self.ticket.cancel();
+    }
+
+    pub fn cancel_flag(&self) -> Arc<AtomicBool> {
+        self.ticket.cancel_flag()
+    }
+
+    /// Waits for the bitmap. If the engine restarted or lost the document, this gives
+    /// `engine-restarted`. Then call `Session::submit_render` again.
+    pub fn wait(self) -> Result<Bitmap> {
+        match self.ticket.wait() {
+            Ok(Response::Rendered(b)) => Ok(b),
+            Ok(r) => Err(unexpected(r)),
+            Err(EngineError::Restarted | EngineError::UnknownDocument) => Err(CoreError::new(
+                code::ENGINE_RESTARTED,
+                "The engine restarted before the render was done.",
+            )
+            .with_hint("Submit the render again.")),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 /// Reads pages of the live document and keeps their IDs in the live `IdMap`.
@@ -847,15 +879,18 @@ impl Session {
         }
     }
 
-    pub fn render(
+    /// Puts a render in the engine queue and returns at once. Reloads the document first
+    /// if the engine restarted.
+    pub fn submit_render(
         &mut self,
         page: PageId,
         scale: f64,
         clip: Option<Clip>,
         priority: Priority,
-    ) -> Result<Bitmap> {
+    ) -> Result<RenderTicket> {
+        self.ensure_open()?;
         let index = self.page_index(page)?;
-        match self.request(
+        let ticket = self.engine.submit(
             priority,
             Request::Render {
                 doc: self.key,
@@ -863,9 +898,24 @@ impl Session {
                 scale,
                 clip,
             },
-        )? {
-            Response::Rendered(b) => Ok(b),
-            r => Err(unexpected(r)),
+        );
+        Ok(RenderTicket { ticket })
+    }
+
+    pub fn render(
+        &mut self,
+        page: PageId,
+        scale: f64,
+        clip: Option<Clip>,
+        priority: Priority,
+    ) -> Result<Bitmap> {
+        match self.submit_render(page, scale, clip, priority)?.wait() {
+            Err(e) if e.code == code::ENGINE_RESTARTED => {
+                self.restarts_seen = self.engine.restarts();
+                self.replay_to(self.applied)?;
+                self.submit_render(page, scale, clip, priority)?.wait()
+            }
+            r => r,
         }
     }
 

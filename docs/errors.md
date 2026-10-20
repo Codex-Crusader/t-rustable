@@ -59,6 +59,7 @@ The GUI and the CLI get these codes from the core. A mod can get the first four 
 | `nothing-to-undo` | There is no transaction to undo. |
 | `nothing-to-redo` | There is no transaction to redo. |
 | `replay-failed` | A recovered journal does not replay on the original document, for example because the original changed. |
+| `engine-restarted` | The engine restarted, or it lost the document, before a submitted render was done. Submit the render again. The session then reloads the document. |
 
 ## Codes of the plugin host
 

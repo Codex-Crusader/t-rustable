@@ -557,3 +557,71 @@ fn outline_maps_pages_to_ids() {
     assert_eq!(s.outline().unwrap()[0].page, None);
     s.close().unwrap();
 }
+
+/// One page with a red rectangle, and its render at scale 0.5.
+fn red_page(e: &Engine, dir: &Path) -> (Session, PageId, t_rustable_engine::Bitmap) {
+    let mut s = open(e, dir, blank_pdf(&[(200.0, 200.0)]));
+    let page = s.page_ids()[0];
+    commit(
+        &mut s,
+        vec![add_rect(page, rect(20.0, 20.0, 120.0, 80.0)).1],
+    )
+    .unwrap();
+    let want = s.render(page, 0.5, None, Priority::Normal).unwrap();
+    assert!(want.bgra.chunks(4).any(|p| p == [0, 0, 255, 255]), "no red");
+    (s, page, want)
+}
+
+#[test]
+fn submit_render_gives_the_same_pixels_as_render() {
+    fn send<T: Send>(_: &T) {}
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut s, page, want) = red_page(&e, dir.path());
+    let t = s
+        .submit_render(page, 0.5, None, Priority::Interactive)
+        .unwrap();
+    send(&t);
+    let got = std::thread::spawn(move || t.wait())
+        .join()
+        .unwrap()
+        .unwrap();
+    assert_eq!(got, want);
+}
+
+#[test]
+fn a_cancelled_render_ticket_gives_cancelled() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut s, page, _) = red_page(&e, dir.path());
+    // The sleep holds the engine, so the render is still in the queue at the cancel.
+    let hold = e.submit(Priority::Interactive, Request::TestSleep { millis: 200 });
+    let t = s.submit_render(page, 0.5, None, Priority::Normal).unwrap();
+    t.cancel();
+    assert!(t.cancel_flag().load(std::sync::atomic::Ordering::Relaxed));
+    assert_eq!(t.wait().unwrap_err().code, code::CANCELLED);
+    hold.wait().unwrap();
+}
+
+#[test]
+fn a_render_ticket_after_an_engine_restart() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut s, page, want) = red_page(&e, dir.path());
+    // The sleep holds the engine. The panic has a higher priority, so it runs before
+    // the render, and the render finds no document.
+    let hold = e.submit(Priority::Interactive, Request::TestSleep { millis: 200 });
+    let t = s
+        .submit_render(page, 0.5, None, Priority::Background)
+        .unwrap();
+    let panic = e.submit(Priority::Interactive, Request::TestPanic);
+    hold.wait().unwrap();
+    assert!(panic.wait().is_err());
+    assert_eq!(t.wait().unwrap_err().code, code::ENGINE_RESTARTED);
+
+    // The new ticket reloads the document first.
+    let t = s
+        .submit_render(page, 0.5, None, Priority::Background)
+        .unwrap();
+    assert_eq!(t.wait().unwrap(), want);
+}
