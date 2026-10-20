@@ -38,6 +38,17 @@ export const S = {
     noHits: "No matches.",
     hitPage: (label: string) => `Page ${label}`,
   },
+  palette: {
+    label: "Command palette",
+    input: "Type a command",
+    empty: "No commands match.",
+    notBound: "Not bound",
+    app: "App",
+  },
+  keymap: {
+    problems: (n: number) =>
+      n === 1 ? "keymap.json has a problem. The other shortcuts work." : `keymap.json has ${n} problems. The other shortcuts work.`,
+  },
   panels: {
     label: "Mod panels",
     choose: "Panel",

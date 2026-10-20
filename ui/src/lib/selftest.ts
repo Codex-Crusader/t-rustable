@@ -211,6 +211,31 @@ export async function runSelfTest(path: string) {
     return { canUndo: doc().canUndo };
   });
 
+  await step("keymap: Ctrl+Shift+R", async () => {
+    const { width, height } = page(0);
+    const ev = { key: "R", code: "KeyR", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true };
+    document.body.dispatchEvent(new KeyboardEvent("keydown", ev));
+    await until(() => Math.abs(page(0).width - height) < 0.01 && Math.abs(page(0).height - width) < 0.01);
+    return { shortcut: app.keymap.byAction.get("t-rustable.page-tools/rotate-right") };
+  });
+
+  await step("palette: Rotate left", async () => {
+    const { width, height } = page(0);
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", code: "KeyK", ctrlKey: true, bubbles: true, cancelable: true }),
+    );
+    await until(() => document.querySelector(".palette input") !== null);
+    const input = document.querySelector<HTMLInputElement>(".palette input")!;
+    input.value = "rotate left";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await frame();
+    const first = document.querySelector("#palette-item-0 .title")?.textContent;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await until(() => Math.abs(page(0).width - height) < 0.01 && Math.abs(page(0).height - width) < 0.01);
+    if (app.paletteOpen) throw new Error("the palette did not close");
+    return { first };
+  });
+
   await step("save", async () => {
     const info = await api.save(doc().id, true, false, "self-test-out.pdf");
     if (!info?.path?.endsWith("self-test-out.pdf") || info.dirty) throw new Error("save did not finish");

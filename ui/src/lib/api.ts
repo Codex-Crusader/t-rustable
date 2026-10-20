@@ -58,6 +58,7 @@ export const api = {
   panelMessage: (modId: string, panelId: string, message: string) =>
     invoke<void>("panel_message", { modId, panelId, message }),
   setPanelTheme: (css: string) => invoke<void>("set_panel_theme", { css }),
+  readKeymap: () => invoke<string | null>("read_keymap"),
   selfTestSecretCalls: () => invoke<number>("self_test_secret_calls"),
   toPdf: (doc: DocId, page: PageId, x: number, y: number) => invoke<[number, number]>("to_pdf", { doc, page, x, y }),
 };

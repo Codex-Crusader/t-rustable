@@ -713,3 +713,21 @@ pub fn set_panel_theme(app: State<'_, App>, css: String) -> Reply<()> {
     *app.bridge.theme_css.lock().unwrap() = css;
     Ok(())
 }
+
+/// The largest keymap.json that the app reads.
+const MAX_KEYMAP: u64 = 256 * 1024;
+
+/// The text of the user keymap.json, or None if there is no file. The UI parses it.
+#[tauri::command]
+pub fn read_keymap(app: State<'_, App>) -> Reply<Option<String>> {
+    let path = app.shared.folders.config.join("keymap.json");
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return Ok(None);
+    };
+    if meta.len() > MAX_KEYMAP {
+        return Err(ErrorDto::new("file-too-large", "keymap.json is too large."));
+    }
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| ErrorDto::new("io-error", format!("keymap.json cannot be read: {e}")))
+}

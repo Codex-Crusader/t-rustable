@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import MenuBar, { type Item } from "./components/MenuBar.svelte";
+  import Palette, { type Command } from "./components/Palette.svelte";
   import PanelHost from "./components/PanelHost.svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import Viewer from "./components/Viewer.svelte";
   import { key, registerTextInput, text } from "./lib/input";
+  import { fromEvent } from "./lib/keymap";
   import { app, type Theme } from "./lib/store.svelte";
   import { S } from "./lib/strings";
 
@@ -30,102 +32,93 @@
       m.disabled ? [] : m.actions.filter((a) => a.tool).map((a) => ({ modId: m.id, action: a })),
     ),
   );
-  const commands = $derived(
-    app.mods.flatMap((m) =>
-      m.disabled ? [] : m.actions.filter((a) => !a.tool).map((a) => ({ modId: m.id, action: a })),
-    ),
-  );
 
   const THEMES: Theme[] = ["light", "dark", "high-contrast"];
 
-  /** App actions. Step 8 moves the shortcuts into keymap.json. */
-  const appActions = $derived({
-    open: { label: S.menu.open, shortcut: "Ctrl+O", run: () => void app.open() },
-    save: { label: S.menu.save, shortcut: "Ctrl+S", disabled: !app.tab, run: () => void app.save(false) },
-    saveAs: { label: S.menu.saveAs, shortcut: "Ctrl+Shift+S", disabled: !app.tab, run: () => void app.save(true) },
-    close: {
-      label: S.menu.close,
-      shortcut: "Ctrl+W",
+  /** App actions. Their IDs are the keys in keymap.json. */
+  const appActions = $derived<Command[]>([
+    { id: "app.open", title: S.menu.open, run: () => void app.open() },
+    { id: "app.save", title: S.menu.save, disabled: !app.tab, run: () => void app.save(false) },
+    { id: "app.save-as", title: S.menu.saveAs, disabled: !app.tab, run: () => void app.save(true) },
+    {
+      id: "app.close",
+      title: S.menu.close,
       disabled: !app.tab,
       run: () => app.activeDoc !== null && void app.close(app.activeDoc),
     },
-    undo: { label: S.menu.undo, shortcut: "Ctrl+Z", disabled: !app.tab?.doc.canUndo, run: () => void app.undo(false) },
-    redo: { label: S.menu.redo, shortcut: "Ctrl+Y", disabled: !app.tab?.doc.canRedo, run: () => void app.undo(true) },
-    zoomIn: { label: S.menu.zoomIn, shortcut: "Ctrl+=", disabled: !app.tab, run: () => app.zoomStep(1) },
-    zoomOut: { label: S.menu.zoomOut, shortcut: "Ctrl+-", disabled: !app.tab, run: () => app.zoomStep(-1) },
-    zoomReset: { label: S.menu.zoomReset, shortcut: "Ctrl+0", disabled: !app.tab, run: () => app.setZoom(1) },
-    fitWidth: { label: S.menu.fitWidth, shortcut: null, disabled: !app.tab, run: () => viewer?.fitWidth() },
-    theme: {
-      label: S.menu.theme,
-      shortcut: null,
+    { id: "app.undo", title: S.menu.undo, disabled: !app.tab?.doc.canUndo, run: () => void app.undo(false) },
+    { id: "app.redo", title: S.menu.redo, disabled: !app.tab?.doc.canRedo, run: () => void app.undo(true) },
+    { id: "app.zoom-in", title: S.menu.zoomIn, disabled: !app.tab, run: () => app.zoomStep(1) },
+    { id: "app.zoom-out", title: S.menu.zoomOut, disabled: !app.tab, run: () => app.zoomStep(-1) },
+    { id: "app.zoom-reset", title: S.menu.zoomReset, disabled: !app.tab, run: () => app.setZoom(1) },
+    { id: "app.fit-width", title: S.menu.fitWidth, disabled: !app.tab, run: () => viewer?.fitWidth() },
+    { id: "app.sidebar", title: S.menu.sidebar, run: () => (app.leftOpen = !app.leftOpen) },
+    { id: "app.panels", title: S.menu.panels, run: () => (app.rightOpen = !app.rightOpen) },
+    {
+      id: "app.theme",
+      title: S.menu.theme,
       run: () => app.setTheme(THEMES[(THEMES.indexOf(app.theme) + 1) % THEMES.length]!),
     },
-    sidebar: {
-      label: S.menu.sidebar,
-      shortcut: "F4",
-      run: () => (app.leftOpen = !app.leftOpen),
-    },
-    panels: {
-      label: S.menu.panels,
-      shortcut: "F6",
-      run: () => (app.rightOpen = !app.rightOpen),
-    },
-    noTool: { label: S.menu.noTool, shortcut: "Escape", run: () => void app.selectTool(null) },
-  });
+    { id: "app.palette", title: S.menu.palette, run: () => (app.paletteOpen = true) },
+    { id: "app.no-tool", title: S.menu.noTool, run: () => void app.selectTool(null) },
+  ].map((a) => ({ ...a, source: S.palette.app })));
+
+  /** Mod actions. A tool action selects the tool, another action runs once. */
+  const modActions = $derived<Command[]>(
+    app.mods.flatMap((m) =>
+      m.disabled
+        ? []
+        : m.actions.map((a) => ({
+            id: `${m.id}/${a.id}`,
+            title: a.title,
+            source: m.name,
+            disabled: !a.tool && !app.tab,
+            run: () => void app.runAction(m.id, a.id, a.title, a.tool),
+          })),
+    ),
+  );
+
+  const actions = $derived(new Map([...appActions, ...modActions].map((a) => [a.id, a])));
+
+  function item(id: string): Item {
+    const a = actions.get(id)!;
+    const shortcut = id === "app.no-tool" ? "Escape" : (app.keymap.byAction.get(id) ?? null);
+    return { label: a.title, shortcut, disabled: a.disabled, run: a.run };
+  }
 
   const menus = $derived<{ label: string; items: Item[] }[]>([
-    { label: S.menu.file, items: [appActions.open, appActions.save, appActions.saveAs, appActions.close] },
-    { label: S.menu.edit, items: [appActions.undo, appActions.redo] },
+    { label: S.menu.file, items: ["app.open", "app.save", "app.save-as", "app.close"].map(item) },
+    { label: S.menu.edit, items: ["app.undo", "app.redo", "app.palette"].map(item) },
     {
       label: S.menu.view,
       items: [
-        appActions.zoomIn,
-        appActions.zoomOut,
-        appActions.zoomReset,
-        appActions.fitWidth,
-        appActions.sidebar,
-        appActions.panels,
-        appActions.theme,
-      ],
+        "app.zoom-in",
+        "app.zoom-out",
+        "app.zoom-reset",
+        "app.fit-width",
+        "app.sidebar",
+        "app.panels",
+        "app.theme",
+      ].map(item),
     },
-    {
-      label: S.menu.tools,
-      items: [
-        appActions.noTool,
-        ...tools.map((t) => ({
-          label: t.action.title,
-          shortcut: t.action.shortcut,
-          run: () => void app.selectTool(t.modId, t.action.id, t.action.title),
-        })),
-        ...commands.map((c) => ({
-          label: c.action.title,
-          shortcut: c.action.shortcut,
-          disabled: !app.tab,
-          run: () => void app.runAction(c.modId, c.action.id, c.action.title, false),
-        })),
-      ],
-    },
+    { label: S.menu.tools, items: ["app.no-tool", ...modActions.map((a) => a.id)].map(item) },
   ]);
 
-  function matches(e: KeyboardEvent, shortcut: string): boolean {
-    const parts = shortcut.split("+");
-    const k = parts.pop()!.toLowerCase();
-    const want = new Set(parts.map((p) => p.toLowerCase()));
-    return (
-      e.ctrlKey === want.has("ctrl") &&
-      e.shiftKey === want.has("shift") &&
-      e.altKey === want.has("alt") &&
-      (e.key.toLowerCase() === k || (k === "=" && e.key === "+"))
-    );
+  /** Shortcuts that a text field keeps for itself. */
+  const TEXT_KEYS = new Set(["Ctrl+Z", "Ctrl+Y", "Ctrl+A", "Ctrl+C", "Ctrl+V", "Ctrl+X"]);
+
+  function isTextField(t: EventTarget | null): boolean {
+    return t !== textArea && (t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && t.type !== "checkbox"));
   }
 
   async function onKeyDown(e: KeyboardEvent) {
-    if (app.ask) return;
-    const all = [...Object.values(appActions)];
-    const hit = all.find((a) => a.shortcut && a.shortcut !== "Escape" && matches(e, a.shortcut));
-    if (hit) {
+    if (app.ask || app.paletteOpen) return;
+    const k = fromEvent(e);
+    const id = k ? app.keymap.byKey.get(k) : undefined;
+    const action = id ? actions.get(id) : undefined;
+    if (action && !(isTextField(e.target) && TEXT_KEYS.has(k!))) {
       e.preventDefault();
-      if (!("disabled" in hit && hit.disabled)) hit.run();
+      if (!action.disabled) action.run();
       return;
     }
     if (app.tool && (e.target === textArea || e.target === document.body)) {
@@ -230,6 +223,10 @@
 </div>
 
 <div class="visually-hidden" aria-live="polite">{app.liveMessage}</div>
+
+{#if app.paletteOpen}
+  <Palette commands={[...actions.values()]} onclose={() => (app.paletteOpen = false)} />
+{/if}
 
 {#if app.ask}
   {@const ask = app.ask}

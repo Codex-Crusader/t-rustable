@@ -1,6 +1,7 @@
 // App state. Components read it, and they change it only through these methods.
 
 import { api, errorCode, errorText, on, type AppInfo } from "./api";
+import { buildKeymap, DEFAULT_KEYS, type Keymap } from "./keymap";
 import { S } from "./strings";
 import { CSS_PER_POINT, schemeBase } from "./tiles";
 import type { DocId, DocInfo, Hit, ModUi, PageId, Shape } from "./types";
@@ -67,6 +68,8 @@ class AppState {
   theme = $state<Theme>("light");
   dpr = $state(window.devicePixelRatio || 1);
   liveMessage = $state("");
+  keymap = $state<Keymap>(buildKeymap(DEFAULT_KEYS, null, {}));
+  paletteOpen = $state(false);
   leftOpen = $state(true);
   leftView = $state<"pages" | "outline" | "search">("pages");
   rightOpen = $state(true);
@@ -113,6 +116,25 @@ class AppState {
 
   async loadRegistry() {
     this.mods = await api.registry();
+    await this.loadKeymap();
+  }
+
+  /** Builds the shortcuts from the defaults, keymap.json, and the mod suggestions. */
+  async loadKeymap() {
+    let text: string | null = null;
+    try {
+      text = await api.readKeymap();
+    } catch (e) {
+      this.fail(e);
+    }
+    const suggestions: Record<string, string> = {};
+    for (const m of this.mods) {
+      for (const a of m.actions) if (a.shortcut && !m.disabled) suggestions[`${m.id}/${a.id}`] = a.shortcut;
+    }
+    this.keymap = buildKeymap(DEFAULT_KEYS, text, suggestions);
+    if (this.keymap.problems.length) {
+      this.toast("warning", `${S.keymap.problems(this.keymap.problems.length)} ${this.keymap.problems.join(" ")}`);
+    }
   }
 
   toast(level: Toast["level"], message: string) {

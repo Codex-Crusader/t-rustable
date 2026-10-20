@@ -307,6 +307,7 @@ fn main() {
             commands::panel_open,
             commands::panel_message,
             commands::set_panel_theme,
+            commands::read_keymap,
             selftest::self_test_report,
             selftest::self_test_secret,
             selftest::self_test_secret_calls,
