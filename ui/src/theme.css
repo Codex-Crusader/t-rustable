@@ -1,0 +1,138 @@
+/* Theme values. The host injects the same variables into mod panels. */
+
+@font-face {
+  font-family: "Noto Sans";
+  src: url("/NotoSans-Regular.ttf");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Noto Sans";
+  src: url("/NotoSans-Bold.ttf");
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Noto Sans";
+  src: url("/NotoSans-Italic.ttf");
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Noto Sans";
+  src: url("/NotoSans-BoldItalic.ttf");
+  font-weight: 700;
+  font-style: italic;
+}
+
+:root,
+[data-theme="light"] {
+  --tr-bg: #f3f3f4;
+  --tr-surface: #ffffff;
+  --tr-surface-2: #e8e8ea;
+  --tr-text: #1b1b1f;
+  --tr-text-muted: #55555f;
+  --tr-border: #c9c9cf;
+  --tr-accent: #1f5fbf;
+  --tr-accent-text: #ffffff;
+  --tr-focus: #1f5fbf;
+  --tr-danger: #b3261e;
+  --tr-success: #1e7a3a;
+  --tr-warning: #8a5a00;
+  --tr-canvas: #d4d4d8;
+  --tr-page-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  --tr-selection: rgba(31, 95, 191, 0.3);
+  --tr-hit: rgba(255, 200, 0, 0.45);
+  --tr-font: "Noto Sans", system-ui, sans-serif;
+  --tr-font-size: 14px;
+  --tr-radius: 6px;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --tr-bg: #1c1c20;
+  --tr-surface: #26262b;
+  --tr-surface-2: #33333a;
+  --tr-text: #ececf1;
+  --tr-text-muted: #a8a8b3;
+  --tr-border: #45454e;
+  --tr-accent: #7aa7ff;
+  --tr-accent-text: #0b1530;
+  --tr-focus: #9cc0ff;
+  --tr-danger: #ff8a80;
+  --tr-success: #7bd88f;
+  --tr-warning: #ffd479;
+  --tr-canvas: #121215;
+  --tr-page-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  --tr-selection: rgba(122, 167, 255, 0.35);
+  --tr-hit: rgba(255, 210, 60, 0.45);
+  color-scheme: dark;
+}
+
+[data-theme="high-contrast"] {
+  --tr-bg: #000000;
+  --tr-surface: #000000;
+  --tr-surface-2: #000000;
+  --tr-text: #ffffff;
+  --tr-text-muted: #ffffff;
+  --tr-border: #ffffff;
+  --tr-accent: #ffff00;
+  --tr-accent-text: #000000;
+  --tr-focus: #00ffff;
+  --tr-danger: #ff6b6b;
+  --tr-success: #00ff7f;
+  --tr-warning: #ffff00;
+  --tr-canvas: #000000;
+  --tr-page-shadow: 0 0 0 2px #ffffff;
+  --tr-selection: rgba(0, 255, 255, 0.45);
+  --tr-hit: rgba(255, 255, 0, 0.55);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--tr-bg);
+  color: var(--tr-text);
+  font-family: var(--tr-font);
+  font-size: var(--tr-font-size);
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--tr-focus);
+  outline-offset: 1px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
