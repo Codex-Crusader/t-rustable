@@ -113,5 +113,31 @@ fn package(folder: &Path, modules: &Path, out: &Path) -> Result<String> {
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     std::fs::write(dir.join("manifest.json"), json).map_err(|e| e.to_string())?;
     std::fs::write(dir.join(&manifest.entry), component).map_err(|e| e.to_string())?;
+    // Panel files: the folder of each panel entry, or the entry alone at the top level.
+    for panel in &manifest.panels {
+        let entry = Path::new(&panel.entry);
+        match entry.parent().filter(|p| !p.as_os_str().is_empty()) {
+            Some(sub) => copy_dir(&folder.join(sub), &dir.join(sub))?,
+            None => {
+                std::fs::copy(folder.join(entry), dir.join(entry))
+                    .map_err(|e| format!("{}: {e}", folder.join(entry).display()))?;
+            }
+        }
+    }
     Ok(manifest.id)
+}
+
+fn copy_dir(from: &Path, to: &Path) -> Result<()> {
+    std::fs::create_dir_all(to).map_err(|e| format!("{}: {e}", to.display()))?;
+    let entries = std::fs::read_dir(from).map_err(|e| format!("{}: {e}", from.display()))?;
+    for entry in entries {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        let target = to.join(path.file_name().unwrap());
+        if path.is_dir() {
+            copy_dir(&path, &target)?;
+        } else {
+            std::fs::copy(&path, &target).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+    }
+    Ok(())
 }

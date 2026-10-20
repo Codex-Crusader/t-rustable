@@ -6,6 +6,7 @@ mod bridge;
 mod commands;
 mod log;
 mod modthread;
+mod panels;
 mod paths;
 mod selftest;
 mod state;
@@ -117,8 +118,40 @@ fn mod_ui(host: &ModHost) -> Vec<ModUi> {
                     entry: p.entry.clone(),
                 })
                 .collect(),
+            dir: host.mod_dir(&m.id).map(PathBuf::from).unwrap_or_default(),
         })
         .collect()
+}
+
+/// A `trpanel` response. Every response has the panel CSP, also errors.
+fn panel_file(bridge: &GuiBridge, path: &str) -> Response<Vec<u8>> {
+    let found = panels::parse(path).and_then(|(mod_id, file)| {
+        let dir = bridge.panel_dir(mod_id)?;
+        if file == panels::THEME_FILE {
+            let css = bridge.theme_css.lock().unwrap().clone().into_bytes();
+            return Some((css, "text/css; charset=utf-8"));
+        }
+        let bytes = std::fs::read(panels::resolve(&dir, file)?).ok()?;
+        let mime = panels::mime(file)?;
+        let bytes = if file.ends_with(".html") {
+            panels::inject_theme(&bytes, mod_id)
+        } else {
+            bytes
+        };
+        Some((bytes, mime))
+    });
+    let (status, mime, body) = match found {
+        Some((body, mime)) => (200, mime, body),
+        None => (404, "text/plain", Vec::new()),
+    };
+    Response::builder()
+        .status(status)
+        .header("Content-Type", mime)
+        .header("Content-Security-Policy", panels::CSP)
+        .header("X-Content-Type-Options", "nosniff")
+        .header("Cache-Control", "no-store")
+        .body(body)
+        .unwrap()
 }
 
 fn respond(status: u16, mime: &str, body: Vec<u8>) -> Response<Vec<u8>> {
@@ -190,6 +223,7 @@ fn main() {
     let tile_shared = shared.clone();
     let tile_bridge = bridge.clone();
     let setup_shared = shared.clone();
+    let panel_bridge = bridge.clone();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(App {
@@ -242,6 +276,13 @@ fn main() {
                 responder.respond(r);
             });
         })
+        .register_asynchronous_uri_scheme_protocol("trpanel", move |_ctx, request, responder| {
+            let path = request.uri().path().to_string();
+            let bridge = panel_bridge.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                responder.respond(panel_file(&bridge, &path));
+            });
+        })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::open_file,
@@ -262,7 +303,13 @@ fn main() {
             commands::save,
             commands::cancel_tiles,
             commands::to_pdf,
+            commands::outline,
+            commands::panel_open,
+            commands::panel_message,
+            commands::set_panel_theme,
             selftest::self_test_report,
+            selftest::self_test_secret,
+            selftest::self_test_secret_calls,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| fail(&format!("The window did not open: {e}")));

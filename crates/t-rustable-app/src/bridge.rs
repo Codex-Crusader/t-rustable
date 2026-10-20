@@ -55,6 +55,9 @@ pub struct ModUi {
     pub actions: Vec<ActionDto>,
     pub toolbar: Vec<ToolbarDto>,
     pub panels: Vec<PanelDto>,
+    /// The folder of the mod. The `trpanel` scheme serves panel files from it.
+    #[serde(skip)]
+    pub dir: PathBuf,
 }
 
 #[derive(Clone, Serialize)]
@@ -106,6 +109,8 @@ pub struct GuiBridge {
     confirms: Mutex<HashMap<u64, mpsc::Sender<bool>>>,
     next_confirm: AtomicU64,
     images: Mutex<HashMap<String, Vec<Image>>>,
+    /// The panel theme file: `--tr-*` variables that the UI sends.
+    pub theme_css: Mutex<String>,
 }
 
 impl GuiBridge {
@@ -116,7 +121,15 @@ impl GuiBridge {
             confirms: Mutex::new(HashMap::new()),
             next_confirm: AtomicU64::new(1),
             images: Mutex::new(HashMap::new()),
+            theme_css: Mutex::new(String::new()),
         }
+    }
+
+    /// The folder of a loaded mod that has panels and is not disabled.
+    pub fn panel_dir(&self, mod_id: &str) -> Option<PathBuf> {
+        let mods = self.mods.lock().unwrap();
+        let m = mods.get(mod_id).filter(|m| !m.disabled)?;
+        (!m.panels.is_empty()).then(|| m.dir.clone())
     }
 
     fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) {

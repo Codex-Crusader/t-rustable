@@ -120,7 +120,9 @@ impl App {
             .lock()
             .unwrap()
             .iter()
-            .cloned()
+            .map(|(m, _)| m.clone())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
             .collect();
         if let Some(tool) = self.shared.active_tool.lock().unwrap().clone()
             && !listeners.contains(&tool)
@@ -631,4 +633,83 @@ pub fn to_pdf(app: State<'_, App>, doc: DocId, page: PageId, x: f64, y: f64) -> 
         .ok_or_else(|| ErrorDto::new("not-found", "The page is not in the document."))?;
     let p = view.from_display(Point { x, y });
     Ok([p.x, p.y])
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutlineDto {
+    title: String,
+    page: Option<PageId>,
+    children: Vec<OutlineDto>,
+}
+
+fn outline_dto(entries: Vec<t_rustable_core::session::OutlineEntry>) -> Vec<OutlineDto> {
+    entries
+        .into_iter()
+        .map(|e| OutlineDto {
+            title: e.title,
+            page: e.page,
+            children: outline_dto(e.children),
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn outline(app: State<'_, App>, doc: DocId) -> Reply<Vec<OutlineDto>> {
+    let session = app.session(doc)?;
+    tauri::async_runtime::spawn_blocking(move || -> Reply<Vec<OutlineDto>> {
+        Ok(outline_dto(session.lock().unwrap().outline()?))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The UI opened or closed a panel. Mods with an open panel get document changes.
+#[tauri::command]
+pub fn panel_open(app: State<'_, App>, mod_id: String, panel_id: String, open: bool) {
+    let mut panels = app.shared.open_panels.lock().unwrap();
+    if open {
+        panels.insert((mod_id, panel_id));
+    } else {
+        panels.remove(&(mod_id, panel_id));
+    }
+}
+
+/// The largest panel message, in bytes.
+const MAX_PANEL_MESSAGE: usize = 1 << 20;
+
+/// A message from a panel to its mod. The UI sends only messages from the iframe of
+/// that panel.
+#[tauri::command]
+pub async fn panel_message(
+    app: State<'_, App>,
+    mod_id: String,
+    panel_id: String,
+    message: String,
+) -> Reply<()> {
+    if message.len() > MAX_PANEL_MESSAGE {
+        return Err(ErrorDto::new(
+            "invalid-argument",
+            "The panel message is too large.",
+        ));
+    }
+    let key = (mod_id.clone(), panel_id.clone());
+    if !app.shared.open_panels.lock().unwrap().contains(&key) {
+        return Err(ErrorDto::new("not-found", "The panel is not open."));
+    }
+    let out = app
+        .mods
+        .call(move |host| host.on_panel_message(&mod_id, &panel_id, &message))
+        .await?;
+    app.finish(None, out).await?.map_err(api_error)
+}
+
+/// The `--tr-*` variables for the panel theme file.
+#[tauri::command]
+pub fn set_panel_theme(app: State<'_, App>, css: String) -> Reply<()> {
+    if css.len() > crate::panels::MAX_THEME {
+        return Err(ErrorDto::new("invalid-argument", "The theme is too large."));
+    }
+    *app.bridge.theme_css.lock().unwrap() = css;
+    Ok(())
 }

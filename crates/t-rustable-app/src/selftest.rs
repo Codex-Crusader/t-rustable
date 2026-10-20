@@ -4,6 +4,7 @@
 use crate::commands::App;
 use crate::tiles::encode_png;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use t_rustable_engine::Bitmap;
 use tauri::State;
 
@@ -115,6 +116,20 @@ pub fn picture(dir: &Path) -> PathBuf {
     let path = dir.join("self-test.png");
     let _ = std::fs::write(&path, encode_png(&bitmap));
     path
+}
+
+/// Calls of `self_test_secret`. A panel must never reach it (the M1 escape checks).
+static SECRET_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+#[tauri::command]
+pub fn self_test_secret() -> &'static str {
+    SECRET_CALLS.fetch_add(1, Ordering::SeqCst);
+    "secret"
+}
+
+#[tauri::command]
+pub fn self_test_secret_calls() -> usize {
+    SECRET_CALLS.load(Ordering::SeqCst)
 }
 
 /// Stops the app with exit code 2 if the UI does not send a report in time.

@@ -1,0 +1,16 @@
+[package]
+name = "fixture-panel"
+description = "Test mod: a panel that tries to escape its iframe, and an echo of panel messages."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+t-rustable-sdk.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,12 @@
+{
+  "id": "test.panel",
+  "name": "Panel test",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable tests",
+  "description": "Test mod for the panel message path and the panel sandbox.",
+  "permissions": ["document.read", "ui"],
+  "entry": "fixture_panel.wasm",
+  "worlds": ["interactive"],
+  "panels": [{ "id": "main", "title": "Panel test", "entry": "panel/index.html" }]
+}

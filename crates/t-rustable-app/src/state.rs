@@ -80,8 +80,8 @@ pub struct Shared {
     pub in_flight: Mutex<HashMap<String, Arc<AtomicBool>>>,
     /// The mod that gets pointer and key events.
     pub active_tool: Mutex<Option<String>>,
-    /// Mods with an open panel. They also get `on-document-changed`.
-    pub open_panels: Mutex<HashSet<String>>,
+    /// Open panels as (mod ID, panel ID). Their mods also get `on-document-changed`.
+    pub open_panels: Mutex<HashSet<(String, String)>>,
     pub app: OnceLock<tauri::AppHandle>,
 }
 
