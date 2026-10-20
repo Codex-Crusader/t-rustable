@@ -82,6 +82,17 @@ export async function runSelfTest(path: string) {
     return { recovered: app.recovered };
   });
 
+  await step("questions wait in a queue", async () => {
+    const first = app.confirm("First", "First question");
+    const second = app.confirm("Second", "Second question");
+    const shown = (): string | undefined => app.ask?.title;
+    if (shown() !== "First") throw new Error("the second question replaced the first");
+    app.ask!.resolve(true);
+    if (shown() !== "Second") throw new Error("the second question did not show");
+    app.ask!.resolve(false);
+    if ((await first) !== true || (await second) !== false || app.ask !== null) throw new Error("wrong answers");
+  });
+
   await step("open and first tile", async () => {
     const tile = new Promise<void>((r) => window.addEventListener("tr-tile", () => r(), { once: true }));
     await app.open(path);

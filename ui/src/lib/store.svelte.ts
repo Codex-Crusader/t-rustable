@@ -66,7 +66,9 @@ class AppState {
   cursor = $state("default");
   overlays = $state<Record<string, Shape[]>>({});
   toasts = $state<Toast[]>([]);
+  /** The question on screen. Others wait in `asks`. */
   ask = $state<Ask | null>(null);
+  private asks: Ask[] = [];
   theme = $state<Theme>("light");
   dpr = $state(window.devicePixelRatio || 1);
   liveMessage = $state("");
@@ -158,31 +160,34 @@ class AppState {
     this.toast("error", errorText(e));
   }
 
+  /**
+   * Shows a question after the questions before it. A mod `confirm` waits in Rust until
+   * it gets its answer, so a question must never replace another one.
+   */
+  private enqueue(question: Omit<Ask, "resolve">, done: (yes: boolean, value?: string) => void) {
+    const item: Ask = {
+      ...question,
+      resolve: (yes, value) => {
+        this.asks.shift();
+        this.ask = this.asks[0] ?? null;
+        done(yes, value);
+      },
+    };
+    this.asks.push(item);
+    if (this.asks.length === 1) this.ask = item;
+  }
+
   confirm(title: string, message: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.ask = {
-        title,
-        message,
-        resolve: (yes) => {
-          this.ask = null;
-          resolve(yes);
-        },
-      };
-    });
+    return new Promise((resolve) => this.enqueue({ title, message }, (yes) => resolve(yes)));
   }
 
   askPassword(name: string): Promise<string | null> {
-    return new Promise((resolve) => {
-      this.ask = {
-        title: S.dialog.passwordTitle,
-        message: S.dialog.passwordMessage(name),
-        password: true,
-        resolve: (yes, value) => {
-          this.ask = null;
-          resolve(yes ? (value ?? "") : null);
-        },
-      };
-    });
+    return new Promise((resolve) =>
+      this.enqueue(
+        { title: S.dialog.passwordTitle, message: S.dialog.passwordMessage(name), password: true },
+        (yes, value) => resolve(yes ? (value ?? "") : null),
+      ),
+    );
   }
 
   /** Offers to recover the sessions that did not close. The self-test recovers them. */
