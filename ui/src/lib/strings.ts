@@ -11,6 +11,7 @@ export const S = {
     save: "Save",
     saveAs: "Save as...",
     close: "Close tab",
+    quit: "Quit",
     undo: "Undo",
     redo: "Redo",
     zoomIn: "Zoom in",
@@ -82,6 +83,16 @@ export const S = {
       "This document has digital signatures. Saving rewrites the file, so the signatures become invalid. Save anyway?",
     passwordTitle: "Password",
     passwordMessage: (name: string) => `${name} needs a password.`,
+    passwordLabel: "Password",
+    quitTitle: "Unsaved changes",
+    quitMessage: (titles: string[]) => `These documents have unsaved changes: ${titles.join(", ")}. Quit and lose the changes?`,
+  },
+  recovery: {
+    title: "Recover documents",
+    message: (titles: string[]) =>
+      `T-Rustable did not close normally. Recover the unsaved work in these documents: ${titles.join(", ")}?`,
+    discardTitle: "Delete the recovery data",
+    discardMessage: "Delete the recovery data now? If you select No, the app asks again at the next start.",
   },
   errors: {
     title: "Error",

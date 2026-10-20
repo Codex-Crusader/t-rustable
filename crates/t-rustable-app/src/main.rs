@@ -8,6 +8,7 @@ mod log;
 mod modthread;
 mod panels;
 mod paths;
+mod recovery;
 mod selftest;
 mod state;
 mod tiles;
@@ -220,6 +221,7 @@ fn main() {
     });
 
     let background = args.background || args.self_test.is_some();
+    let folders_sessions = shared.folders.sessions.clone();
     let tile_shared = shared.clone();
     let tile_bridge = bridge.clone();
     let setup_shared = shared.clone();
@@ -233,6 +235,7 @@ fn main() {
             action_cancel: Mutex::new(None),
             self_test: args.self_test,
             files: args.files,
+            instance_lock: recovery::instance_lock(&folders_sessions),
         })
         .setup(move |app| {
             let _ = setup_shared.app.set(app.handle().clone());
@@ -276,6 +279,13 @@ fn main() {
                 responder.respond(r);
             });
         })
+        // The UI asks about unsaved changes, then calls `quit`.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = tauri::Emitter::emit(window, "close-requested", ());
+            }
+        })
         .register_asynchronous_uri_scheme_protocol("trpanel", move |_ctx, request, responder| {
             let path = request.uri().path().to_string();
             let bridge = panel_bridge.clone();
@@ -308,6 +318,10 @@ fn main() {
             commands::panel_message,
             commands::set_panel_theme,
             commands::read_keymap,
+            recovery::unclosed,
+            recovery::recover,
+            recovery::discard_unclosed,
+            recovery::quit,
             selftest::self_test_report,
             selftest::self_test_secret,
             selftest::self_test_secret_calls,

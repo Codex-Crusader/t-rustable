@@ -21,6 +21,7 @@ export const DEFAULT_KEYS: Record<ActionId, string> = {
   "app.save": "Ctrl+S",
   "app.save-as": "Ctrl+Shift+S",
   "app.close": "Ctrl+W",
+  "app.quit": "Ctrl+Q",
   "app.undo": "Ctrl+Z",
   "app.redo": "Ctrl+Y",
   "app.zoom-in": "Ctrl+=",

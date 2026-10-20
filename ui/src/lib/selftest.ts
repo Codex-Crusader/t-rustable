@@ -75,6 +75,13 @@ export async function runSelfTest(path: string) {
     }
   };
 
+  // A run after a run that did not close recovers its session.
+  await step("recovery", async () => {
+    const recovered = app.tabs.slice(0, app.recovered);
+    if (recovered.some((t) => !t.doc.dirty || !t.doc.canUndo)) throw new Error("a recovered document has no changes");
+    return { recovered: app.recovered };
+  });
+
   await step("open and first tile", async () => {
     const tile = new Promise<void>((r) => window.addEventListener("tr-tile", () => r(), { once: true }));
     await app.open(path);

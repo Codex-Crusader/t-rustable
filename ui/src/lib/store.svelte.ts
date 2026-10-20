@@ -49,7 +49,9 @@ export interface Toast {
 export interface Ask {
   title: string;
   message: string;
-  resolve: (yes: boolean) => void;
+  /** Ask for a password. The answer is the text, or null after Cancel. */
+  password?: boolean;
+  resolve: (yes: boolean, value?: string) => void;
 }
 
 export type Theme = "light" | "dark" | "high-contrast";
@@ -68,6 +70,8 @@ class AppState {
   theme = $state<Theme>("light");
   dpr = $state(window.devicePixelRatio || 1);
   liveMessage = $state("");
+  /** Documents recovered at start. The self-test reports it. */
+  recovered = $state(0);
   keymap = $state<Keymap>(buildKeymap(DEFAULT_KEYS, null, {}));
   paletteOpen = $state(false);
   leftOpen = $state(true);
@@ -106,7 +110,9 @@ class AppState {
       await api.answerConfirm(e.id, yes);
     });
     await on("registry-changed", () => void this.loadRegistry());
+    await on("close-requested", () => void this.quit());
     await this.loadRegistry();
+    await this.offerRecovery();
     for (const f of this.info.files) await this.open(f);
     if (this.info.selfTest) {
       const { runSelfTest } = await import("./selftest");
@@ -165,6 +171,67 @@ class AppState {
     });
   }
 
+  askPassword(name: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      this.ask = {
+        title: S.dialog.passwordTitle,
+        message: S.dialog.passwordMessage(name),
+        password: true,
+        resolve: (yes, value) => {
+          this.ask = null;
+          resolve(yes ? (value ?? "") : null);
+        },
+      };
+    });
+  }
+
+  /** Offers to recover the sessions that did not close. The self-test recovers them. */
+  async offerRecovery() {
+    let list: { id: string; title: string }[] = [];
+    try {
+      list = await api.unclosed();
+    } catch (e) {
+      this.fail(e);
+      return;
+    }
+    if (!list.length) return;
+    const titles = list.map((u) => u.title);
+    if (!this.info.selfTest && !(await this.confirm(S.recovery.title, S.recovery.message(titles)))) {
+      if (await this.confirm(S.recovery.discardTitle, S.recovery.discardMessage)) {
+        for (const u of list) await api.discardUnclosed(u.id).catch((e) => this.fail(e));
+      }
+      return;
+    }
+    for (const u of list) {
+      try {
+        let info: DocInfo;
+        try {
+          info = await api.recover(u.id);
+        } catch (e) {
+          if (errorCode(e) !== "password-required") throw e;
+          const password = await this.askPassword(u.title);
+          if (password === null) continue;
+          info = await api.recover(u.id, password);
+        }
+        this.addTab(info);
+        this.recovered++;
+      } catch (e) {
+        this.fail(e);
+      }
+    }
+  }
+
+  /** Asks about unsaved changes, then closes all sessions and stops the app. */
+  async quit() {
+    const dirty = this.tabs.filter((t) => t.doc.dirty).map((t) => t.doc.title);
+    if (dirty.length && !(await this.confirm(S.dialog.quitTitle, S.dialog.quitMessage(dirty)))) return;
+    try {
+      await api.quit();
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
   setOverlay(modId: string, shapes: Shape[]) {
     this.overlays[modId] = shapes;
     const labels = shapes.map((s) => s.label).filter(Boolean);
@@ -194,26 +261,30 @@ class AppState {
         info = await api.openFile(path);
       } catch (e) {
         if (errorCode(e) !== "password-required") throw e;
-        const password = window.prompt(S.dialog.passwordMessage(path ?? ""));
+        const name = path?.split(/[\\/]/).pop() ?? "";
+        const password = await this.askPassword(name);
         if (password === null) return;
         info = await api.openFile(path, password);
       }
-      if (!info) return;
-      this.tabs.push({
-        doc: info,
-        zoom: 1,
-        activePage: info.pages[0]?.id ?? null,
-        selected: [],
-        scrollRequest: 0,
-        scrollTarget: null,
-        anchor: null,
-        hits: [],
-        activeHit: -1,
-      });
-      this.activate(info.id);
+      if (info) this.addTab(info);
     } catch (e) {
       this.fail(e);
     }
+  }
+
+  addTab(info: DocInfo) {
+    this.tabs.push({
+      doc: info,
+      zoom: 1,
+      activePage: info.pages[0]?.id ?? null,
+      selected: [],
+      scrollRequest: 0,
+      scrollTarget: null,
+      anchor: null,
+      hits: [],
+      activeHit: -1,
+    });
+    this.activate(info.id);
   }
 
   async refresh(doc: DocId) {

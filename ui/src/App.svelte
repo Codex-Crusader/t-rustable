@@ -12,6 +12,13 @@
 
   let viewer: Viewer | undefined = $state();
   let textArea: HTMLTextAreaElement | undefined = $state();
+  let password = $state("");
+
+  // A new question starts with an empty password field.
+  $effect(() => {
+    void app.ask;
+    password = "";
+  });
 
   onMount(() => {
     void app.start();
@@ -40,6 +47,7 @@
     { id: "app.open", title: S.menu.open, run: () => void app.open() },
     { id: "app.save", title: S.menu.save, disabled: !app.tab, run: () => void app.save(false) },
     { id: "app.save-as", title: S.menu.saveAs, disabled: !app.tab, run: () => void app.save(true) },
+    { id: "app.quit", title: S.menu.quit, run: () => void app.quit() },
     {
       id: "app.close",
       title: S.menu.close,
@@ -87,7 +95,7 @@
   }
 
   const menus = $derived<{ label: string; items: Item[] }[]>([
-    { label: S.menu.file, items: ["app.open", "app.save", "app.save-as", "app.close"].map(item) },
+    { label: S.menu.file, items: ["app.open", "app.save", "app.save-as", "app.close", "app.quit"].map(item) },
     { label: S.menu.edit, items: ["app.undo", "app.redo", "app.palette"].map(item) },
     {
       label: S.menu.view,
@@ -232,13 +240,26 @@
   {@const ask = app.ask}
   <div class="backdrop">
     <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-text">
-      <h2 id="ask-title">{ask.title}</h2>
-      <p id="ask-text">{ask.message}</p>
-      <div class="buttons">
-        <!-- svelte-ignore a11y_autofocus -->
-        <button autofocus onclick={() => ask.resolve(false)}>{S.dialog.no}</button>
-        <button class="primary" onclick={() => ask.resolve(true)}>{S.dialog.yes}</button>
-      </div>
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          ask.resolve(true, password);
+        }}
+      >
+        <h2 id="ask-title">{ask.title}</h2>
+        <p id="ask-text">{ask.message}</p>
+        {#if ask.password}
+          <!-- svelte-ignore a11y_autofocus -->
+          <input class="password" type="password" autofocus aria-label={S.dialog.passwordLabel} bind:value={password} />
+        {/if}
+        <div class="buttons">
+          <!-- svelte-ignore a11y_autofocus -->
+          <button type="button" autofocus={!ask.password} onclick={() => ask.resolve(false)}
+            >{ask.password ? S.dialog.cancel : S.dialog.no}</button
+          >
+          <button type="submit" class="primary">{ask.password ? S.dialog.ok : S.dialog.yes}</button>
+        </div>
+      </form>
     </div>
   </div>
 {/if}
@@ -382,6 +403,13 @@
   .dialog h2 {
     margin: 0 0 8px;
     font-size: 1.15em;
+  }
+  .password {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+    padding: 6px 8px;
+    font: inherit;
   }
   .buttons {
     display: flex;

@@ -64,13 +64,22 @@ jobs:
       # The app opens a generated PDF, runs the built-in mods through the UI code, saves,
       # and writes a JSON report. A failed step gives exit code 1.
       - run: cargo build -p t-rustable-app
-      - name: GUI self-test (Windows)
+      # The first run exits without closing its session, so the second run must recover it.
+      - name: GUI self-test, two runs (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: T_RUSTABLE_HOME="$RUNNER_TEMP/trhome" target/debug/t-rustable-app.exe --self-test
-      - name: GUI self-test (Linux, virtual display)
+        run: |
+          export T_RUSTABLE_HOME="$RUNNER_TEMP/trhome"
+          target/debug/t-rustable-app.exe --self-test
+          target/debug/t-rustable-app.exe --self-test
+          node .github/scripts/check-recovery.js "$T_RUSTABLE_HOME/log/self-test.json"
+      - name: GUI self-test, two runs (Linux, virtual display)
         if: runner.os == 'Linux'
-        run: T_RUSTABLE_HOME="$RUNNER_TEMP/trhome" xvfb-run -a target/debug/t-rustable-app --self-test
+        run: |
+          export T_RUSTABLE_HOME="$RUNNER_TEMP/trhome"
+          xvfb-run -a target/debug/t-rustable-app --self-test
+          xvfb-run -a target/debug/t-rustable-app --self-test
+          node .github/scripts/check-recovery.js "$T_RUSTABLE_HOME/log/self-test.json"
 
   # cargo-deny checks the graph for all targets, so one Linux run covers Windows too.
   # The bans section is the check that fails on HTTP client crates.

@@ -58,6 +58,10 @@ export const api = {
   panelMessage: (modId: string, panelId: string, message: string) =>
     invoke<void>("panel_message", { modId, panelId, message }),
   setPanelTheme: (css: string) => invoke<void>("set_panel_theme", { css }),
+  unclosed: () => invoke<{ id: string; title: string }[]>("unclosed"),
+  recover: (id: string, password: string | null = null) => invoke<DocInfo>("recover", { id, password }),
+  discardUnclosed: (id: string) => invoke<void>("discard_unclosed", { id }),
+  quit: () => invoke<void>("quit"),
   readKeymap: () => invoke<string | null>("read_keymap"),
   selfTestSecretCalls: () => invoke<number>("self_test_secret_calls"),
   toPdf: (doc: DocId, page: PageId, x: number, y: number) => invoke<[number, number]>("to_pdf", { doc, page, x, y }),
@@ -71,6 +75,7 @@ export interface Events {
   progress: { modId: string; fraction: number; message: string };
   "registry-changed": null;
   "panel-message": { modId: string; panelId: string; message: string };
+  "close-requested": null;
 }
 
 export function on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): Promise<UnlistenFn> {

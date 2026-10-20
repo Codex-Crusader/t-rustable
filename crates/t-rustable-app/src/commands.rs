@@ -23,6 +23,8 @@ pub struct App {
     pub self_test: Option<PathBuf>,
     /// Files from the command line, to open at start.
     pub files: Vec<PathBuf>,
+    /// Held while the app runs. None if another instance has it.
+    pub instance_lock: Option<std::fs::File>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -65,7 +67,7 @@ impl From<String> for ErrorDto {
     }
 }
 
-type Reply<T> = Result<T, ErrorDto>;
+pub type Reply<T> = Result<T, ErrorDto>;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
