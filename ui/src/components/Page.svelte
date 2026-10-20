@@ -71,6 +71,15 @@
     );
   });
 
+  // Search hits on this page. The active hit has a stronger color.
+  const hits = $derived.by(() => {
+    const tab = app.tabs.find((t) => t.doc.id === doc);
+    if (!tab) return [];
+    return tab.hits.flatMap((h, i) =>
+      h.page === page.id ? h.boxes.map((b) => ({ ...b, active: i === tab.activeHit })) : [],
+    );
+  });
+
   const shapes = $derived(
     Object.values(app.overlays)
       .flat()
@@ -174,6 +183,14 @@
     {/each}
   </svg>
 
+  {#if hits.length}
+    <svg class="hits" viewBox="0 0 {page.width} {page.height}" width={width} height={height} aria-hidden="true">
+      {#each hits as b, i (i)}
+        <rect x={b.x} y={b.y} width={b.w} height={b.h} class:active={b.active} />
+      {/each}
+    </svg>
+  {/if}
+
   <Overlay {shapes} width={page.width} height={page.height} {cssScale} />
 
   {#if app.tool}
@@ -214,6 +231,18 @@
   .text-layer text::selection {
     fill: transparent;
     background: var(--tr-selection);
+  }
+  .hits {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .hits rect {
+    fill: var(--tr-hit);
+    opacity: 0.35;
+  }
+  .hits rect.active {
+    opacity: 0.7;
   }
   .capture {
     position: absolute;

@@ -82,6 +82,12 @@ export interface Hit {
   boxes: Box2[];
 }
 
+export interface OutlineItem {
+  title: string;
+  page: PageId | null;
+  children: OutlineItem[];
+}
+
 export interface PointerReply {
   cursor: string;
   handled: boolean;

@@ -1,7 +1,7 @@
 // `--self-test <pdf>`: a scenario through the same calls that the UI uses. The Rust side
 // writes the report and stops the app.
 
-import { api, errorText } from "./api";
+import { api, errorText, on } from "./api";
 import { app } from "./store.svelte";
 import type { DocInfo, PageInfo } from "./types";
 
@@ -11,6 +11,8 @@ interface Step {
   ms: number;
   detail?: unknown;
 }
+
+const PRESENCE_ONLY = new Set(["own __TAURI_INTERNALS__", "window.ipc.postMessage", "chrome.webview.postMessage"]);
 
 const NO_MODS = { shift: false, ctrl: false, alt: false, meta: false };
 
@@ -106,6 +108,62 @@ export async function runSelfTest(path: string) {
       p95Ms: Math.round(frames[Math.floor(frames.length * 0.95)]! * 10) / 10,
       over33: frames.filter((f) => f > 33).length,
     };
+  });
+
+  await step("thumbnails and page selection", async () => {
+    app.leftOpen = true;
+    app.leftView = "pages";
+    await until(() => document.querySelectorAll(".thumbs [role=option]").length === doc().pages.length);
+    await until(() => [...document.querySelectorAll<HTMLImageElement>(".thumbs img")].some((i) => i.complete && i.naturalWidth > 0));
+    app.selectPage(page(0).id, "only");
+    app.selectPage(page(2).id, "range");
+    await until(() => document.querySelectorAll(".thumbs [aria-selected=true]").length === 3);
+    app.selectPage(page(0).id, "only");
+    return { thumbnails: doc().pages.length };
+  });
+
+  await step("outline", async () => {
+    const items = await api.outline(doc().id);
+    app.leftView = "outline";
+    await until(() => document.querySelector("#side-view .muted, #side-view ul") !== null);
+    app.leftView = "pages";
+    return { items: items.length };
+  });
+
+  await step("search and highlights", async () => {
+    await app.search("quick brown", false, false);
+    const hits = app.tab!.hits.length;
+    if (!hits) throw new Error("no hits");
+    await until(() => document.querySelectorAll(".hits rect").length > 0);
+    await app.search("", false, false);
+    return { hits };
+  });
+
+  await step("panel: messages and sandbox", async () => {
+    const echoes: string[] = [];
+    const unlisten = await on("panel-message", (e) => {
+      if (e.modId === "test.panel") echoes.push(e.message);
+    });
+    try {
+      app.rightOpen = true;
+      app.activePanel = "test.panel/main";
+      // Load the panel again, so its messages come after the listener.
+      app.panelTheme++;
+      await until(() => echoes.includes("echo:ack"), 60000);
+    } finally {
+      unlisten();
+    }
+    const echo = echoes.find((m) => m.startsWith("echo:{"));
+    const results = (JSON.parse(echo!.slice(5)) as { results: Record<string, string> }).results;
+    // On Windows, Tauri puts its bridge objects into every frame, but it drops IPC from
+    // a panel (M1 report, spike 2, finding 6). The secret counter is the real check.
+    const known = app.info.platform === "windows" ? PRESENCE_ONLY : new Set<string>();
+    const leaks = Object.entries(results).filter(([k, v]) => v.startsWith("LEAK") && !known.has(k));
+    const secretCalls = await api.selfTestSecretCalls();
+    if (leaks.length || secretCalls !== 0 || location.hash === "#escaped") {
+      throw new Error(JSON.stringify({ leaks, secretCalls, hash: location.hash }));
+    }
+    return { checks: Object.keys(results).length, secretCalls, results };
   });
 
   await step("shapes: rectangle", async () => {

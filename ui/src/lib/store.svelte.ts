@@ -3,7 +3,7 @@
 import { api, errorCode, errorText, on, type AppInfo } from "./api";
 import { S } from "./strings";
 import { CSS_PER_POINT, schemeBase } from "./tiles";
-import type { DocId, DocInfo, ModUi, PageId, Shape } from "./types";
+import type { DocId, DocInfo, Hit, ModUi, PageId, Shape } from "./types";
 
 export const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
 
@@ -15,7 +15,29 @@ export interface Tab {
   /** Increments to ask the viewer to scroll to `scrollTarget`. */
   scrollRequest: number;
   scrollTarget: PageId | null;
+  /** The anchor of Shift selection in the thumbnails. */
+  anchor: PageId | null;
+  hits: Hit[];
+  activeHit: number;
 }
+
+/** The theme variables that panels get in their theme file. */
+const PANEL_VARS = [
+  "--tr-bg",
+  "--tr-surface",
+  "--tr-surface-2",
+  "--tr-text",
+  "--tr-text-muted",
+  "--tr-border",
+  "--tr-accent",
+  "--tr-accent-text",
+  "--tr-focus",
+  "--tr-danger",
+  "--tr-warning",
+  "--tr-success",
+  "--tr-radius",
+  "--tr-font-size",
+];
 
 export interface Toast {
   id: number;
@@ -45,6 +67,13 @@ class AppState {
   theme = $state<Theme>("light");
   dpr = $state(window.devicePixelRatio || 1);
   liveMessage = $state("");
+  leftOpen = $state(true);
+  leftView = $state<"pages" | "outline" | "search">("pages");
+  rightOpen = $state(true);
+  /** "<mod>/<panel>" of the panel in the right side bar. */
+  activePanel = $state<string | null>(null);
+  /** Increments after the panel theme file changes, so panels load again. */
+  panelTheme = $state(0);
   private nextToast = 1;
 
   get tab(): Tab | undefined {
@@ -155,6 +184,9 @@ class AppState {
         selected: [],
         scrollRequest: 0,
         scrollTarget: null,
+        anchor: null,
+        hits: [],
+        activeHit: -1,
       });
       this.activate(info.id);
     } catch (e) {
@@ -252,6 +284,60 @@ class AppState {
     if (tool) return this.selectTool(modId, actionId, title);
     try {
       await api.runAction(modId, actionId);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  /** Scrolls the viewer to a page and makes it the active page. */
+  goTo(page: PageId) {
+    const tab = this.tab;
+    if (!tab) return;
+    tab.activePage = page;
+    tab.scrollTarget = page;
+    tab.scrollRequest++;
+    this.pushContext();
+  }
+
+  /** Page selection with the thumbnail rules: a click, Ctrl to toggle, Shift for a range. */
+  selectPage(page: PageId, mode: "only" | "toggle" | "range") {
+    const tab = this.tab;
+    if (!tab) return;
+    const ids = tab.doc.pages.map((p) => p.id);
+    if (mode === "toggle") {
+      tab.selected = tab.selected.includes(page) ? tab.selected.filter((p) => p !== page) : [...tab.selected, page];
+      tab.anchor = page;
+    } else if (mode === "range" && tab.anchor && ids.includes(tab.anchor)) {
+      const [a, b] = [ids.indexOf(tab.anchor), ids.indexOf(page)].sort((x, y) => x - y);
+      tab.selected = ids.slice(a!, b! + 1);
+    } else {
+      tab.selected = [page];
+      tab.anchor = page;
+    }
+    this.goTo(page);
+  }
+
+  async search(query: string, matchCase: boolean, wholeWord: boolean) {
+    const tab = this.tab;
+    if (!tab) return;
+    try {
+      tab.hits = query ? await api.search(tab.doc.id, query, matchCase, wholeWord) : [];
+      tab.activeHit = tab.hits.length ? 0 : -1;
+      this.liveMessage = tab.hits.length ? S.sidebar.hits(tab.hits.length) : S.sidebar.noHits;
+      if (tab.hits[0]) this.goTo(tab.hits[0].page);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  /** Sends the current theme variables to the panel theme file. */
+  async pushPanelTheme() {
+    const style = getComputedStyle(document.documentElement);
+    const vars = PANEL_VARS.map((v) => `  ${v}: ${style.getPropertyValue(v).trim()};`).join("\n");
+    const css = `:root {\n${vars}\n  color-scheme: ${this.theme === "light" ? "light" : "dark"};\n}\n`;
+    try {
+      await api.setPanelTheme(css);
+      this.panelTheme++;
     } catch (e) {
       this.fail(e);
     }

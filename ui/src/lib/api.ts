@@ -2,7 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { DocId, DocInfo, Hit, ModUi, PageId, PointerReply, Shape, TextRun } from "./types";
+import type { DocId, DocInfo, Hit, ModUi, OutlineItem, PageId, PointerReply, Shape, TextRun } from "./types";
 
 export interface AppInfo {
   version: string;
@@ -52,6 +52,13 @@ export const api = {
     invoke<DocInfo | null>("save", { doc, saveAs, allowInvalidateSignatures, target }),
   selfTestReport: (report: unknown) => invoke<void>("self_test_report", { report }),
   cancelTiles: (paths: string[]) => invoke<void>("cancel_tiles", { paths }),
+  outline: (doc: DocId) => invoke<OutlineItem[]>("outline", { doc }),
+  panelOpen: (modId: string, panelId: string, open: boolean) =>
+    invoke<void>("panel_open", { modId, panelId, open }),
+  panelMessage: (modId: string, panelId: string, message: string) =>
+    invoke<void>("panel_message", { modId, panelId, message }),
+  setPanelTheme: (css: string) => invoke<void>("set_panel_theme", { css }),
+  selfTestSecretCalls: () => invoke<number>("self_test_secret_calls"),
   toPdf: (doc: DocId, page: PageId, x: number, y: number) => invoke<[number, number]>("to_pdf", { doc, page, x, y }),
 };
 

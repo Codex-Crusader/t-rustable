@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import MenuBar, { type Item } from "./components/MenuBar.svelte";
+  import PanelHost from "./components/PanelHost.svelte";
+  import Sidebar from "./components/Sidebar.svelte";
   import Viewer from "./components/Viewer.svelte";
   import { key, registerTextInput, text } from "./lib/input";
   import { app, type Theme } from "./lib/store.svelte";
@@ -19,6 +21,8 @@
 
   $effect(() => {
     document.documentElement.dataset.theme = app.theme;
+    // Panels get the new variables after the page has the new theme.
+    untrack(() => void app.pushPanelTheme());
   });
 
   const tools = $derived(
@@ -56,6 +60,16 @@
       shortcut: null,
       run: () => app.setTheme(THEMES[(THEMES.indexOf(app.theme) + 1) % THEMES.length]!),
     },
+    sidebar: {
+      label: S.menu.sidebar,
+      shortcut: "F4",
+      run: () => (app.leftOpen = !app.leftOpen),
+    },
+    panels: {
+      label: S.menu.panels,
+      shortcut: "F6",
+      run: () => (app.rightOpen = !app.rightOpen),
+    },
     noTool: { label: S.menu.noTool, shortcut: "Escape", run: () => void app.selectTool(null) },
   });
 
@@ -64,7 +78,15 @@
     { label: S.menu.edit, items: [appActions.undo, appActions.redo] },
     {
       label: S.menu.view,
-      items: [appActions.zoomIn, appActions.zoomOut, appActions.zoomReset, appActions.fitWidth, appActions.theme],
+      items: [
+        appActions.zoomIn,
+        appActions.zoomOut,
+        appActions.zoomReset,
+        appActions.fitWidth,
+        appActions.sidebar,
+        appActions.panels,
+        appActions.theme,
+      ],
     },
     {
       label: S.menu.tools,
@@ -159,14 +181,22 @@
 
   <main class="main">
     {#if app.tab}
-      {#key app.tab.doc.id}
-        <Viewer tab={app.tab} bind:this={viewer} />
-      {/key}
+      {#if app.leftOpen}
+        <Sidebar tab={app.tab} />
+      {/if}
+      <div class="center">
+        {#key app.tab.doc.id}
+          <Viewer tab={app.tab} bind:this={viewer} />
+        {/key}
+      </div>
     {:else}
       <div class="empty">
         <p>{S.status.noDocument}</p>
         <button onclick={() => void app.open()}>{S.menu.open}</button>
       </div>
+    {/if}
+    {#if app.rightOpen}
+      <PanelHost />
     {/if}
   </main>
 
@@ -271,10 +301,16 @@
     white-space: nowrap;
   }
   .main {
+    display: flex;
     min-height: 0;
     position: relative;
   }
+  .center {
+    flex: 1;
+    min-width: 0;
+  }
   .empty {
+    flex: 1;
     display: grid;
     place-content: center;
     gap: 12px;
