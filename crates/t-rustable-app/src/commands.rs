@@ -10,7 +10,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use t_rustable_core::{Change, CoreError, OpenOptions, PageId, SaveOptions, Session};
 use t_rustable_engine::{Point, SearchOptions};
-use t_rustable_plugin_host::{HostError, ModHost, Outcome};
+use t_rustable_plugin_host::{HostError, Outcome};
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -23,6 +23,8 @@ pub struct App {
     pub self_test: Option<PathBuf>,
     /// Files from the command line, to open at start.
     pub files: Vec<PathBuf>,
+    /// `.tmod` packages from the command line, to offer for install at start.
+    pub packages: Vec<PathBuf>,
     /// Held while the app runs. None if another instance has it.
     pub instance_lock: Option<std::fs::File>,
 }
@@ -136,11 +138,11 @@ impl App {
         }
         let more = self
             .mods
-            .call(move |host| {
+            .call(move |m| {
                 let mut more = Vec::new();
                 for id in listeners {
                     for c in &changes {
-                        match host.on_document_changed(&id, &session, c) {
+                        match m.host.on_document_changed(&id, &session, c) {
                             Ok(out) => more.extend(out.changes),
                             Err(e) => more.extend(e.changes),
                         }
@@ -188,6 +190,7 @@ pub struct AppInfo {
     platform: &'static str,
     self_test: Option<String>,
     files: Vec<String>,
+    packages: Vec<String>,
 }
 
 #[tauri::command]
@@ -197,6 +200,11 @@ pub fn app_info(app: State<'_, App>) -> AppInfo {
         platform: if cfg!(windows) { "windows" } else { "linux" },
         self_test: app.self_test.as_ref().map(|p| p.display().to_string()),
         files: app.files.iter().map(|p| p.display().to_string()).collect(),
+        packages: app
+            .packages
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect(),
     }
 }
 
@@ -395,15 +403,7 @@ pub async fn search(
 
 #[tauri::command]
 pub async fn registry(app: State<'_, App>) -> Reply<Vec<ModUi>> {
-    let disabled: Vec<String> = app
-        .mods
-        .call(|host: &mut ModHost| {
-            host.manifests()
-                .map(|m| m.id.clone())
-                .filter(|id| host.is_disabled(id))
-                .collect()
-        })
-        .await?;
+    let disabled: Vec<String> = app.mods.call(|m| m.stopped()).await?;
     let mut mods: Vec<ModUi> = app.bridge.mods.lock().unwrap().values().cloned().collect();
     for m in &mut mods {
         m.disabled = disabled.contains(&m.id);
@@ -419,13 +419,13 @@ async fn switch_tool(app: &App, id: Option<String>) -> Reply<()> {
     }
     if let Some(old) = old {
         let id = old.clone();
-        let out = app.mods.call(move |host| host.deactivate(&id)).await?;
+        let out = app.mods.call(move |m| m.host.deactivate(&id)).await?;
         let _ = app.finish(None, out).await;
         app.bridge.clear_overlay_of(&old);
     }
     *app.shared.active_tool.lock().unwrap() = id.clone();
     if let Some(id) = id {
-        let out = app.mods.call(move |host| host.activate(&id)).await?;
+        let out = app.mods.call(move |m| m.host.activate(&id)).await?;
         app.finish(None, out).await?.map_err(api_error)?;
     }
     Ok(())
@@ -463,7 +463,10 @@ pub async fn run_action(
     let args = args.unwrap_or_else(|| "{}".into());
     let out = app
         .mods
-        .call(move |host| host.run_action(&mod_id, session.as_ref(), &action_id, &args, cancel))
+        .call(move |m| {
+            m.host
+                .run_action(&mod_id, session.as_ref(), &action_id, &args, cancel)
+        })
         .await?;
     *app.action_cancel.lock().unwrap() = None;
     app.finish(doc, out).await?.map_err(api_error)
@@ -501,7 +504,7 @@ pub async fn pointer(app: State<'_, App>, doc: DocId, event: PointerIn) -> Reply
     let event = wire::pointer(&view, &event).map_err(|m| ErrorDto::new("invalid-argument", m))?;
     let out = app
         .mods
-        .call(move |host| host.on_pointer(&tool, &session, event))
+        .call(move |m| m.host.on_pointer(&tool, &session, event))
         .await?;
     let result = app.finish(Some(doc), out).await?;
     Ok(PointerReply {
@@ -520,7 +523,7 @@ pub async fn key(app: State<'_, App>, doc: DocId, event: KeyIn) -> Reply<bool> {
     let event = wire::key(&event);
     let out = app
         .mods
-        .call(move |host| host.on_key(&tool, &session, event))
+        .call(move |m| m.host.on_key(&tool, &session, event))
         .await?;
     Ok(app.finish(Some(doc), out).await?.handled)
 }
@@ -533,7 +536,7 @@ pub async fn text_input(app: State<'_, App>, doc: DocId, text: String) -> Reply<
     let session = app.session(doc)?;
     let out = app
         .mods
-        .call(move |host| host.on_text_input(&tool, &session, &text))
+        .call(move |m| m.host.on_text_input(&tool, &session, &text))
         .await?;
     app.finish(Some(doc), out).await
 }
@@ -701,7 +704,7 @@ pub async fn panel_message(
     }
     let out = app
         .mods
-        .call(move |host| host.on_panel_message(&mod_id, &panel_id, &message))
+        .call(move |m| m.host.on_panel_message(&mod_id, &panel_id, &message))
         .await?;
     app.finish(None, out).await?.map_err(api_error)
 }

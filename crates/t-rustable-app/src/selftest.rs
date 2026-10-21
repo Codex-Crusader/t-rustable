@@ -156,3 +156,101 @@ pub fn self_test_report(app: State<'_, App>, report: serde_json::Value) {
     println!("Report: {}", path.display());
     std::process::exit(if ok { 0 } else { 1 });
 }
+
+/// The packages and the developer folder for the mod steps: the stamp example, the
+/// same mod as version 0.2.0, and a copy of the unpacked stamp with another ID.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SelfTestPackages {
+    stamp: String,
+    stamp_update: String,
+    dev_folder: String,
+}
+
+const DEV_ID: &str = "example.dev-stamp";
+
+fn dev_folder(app: &App) -> PathBuf {
+    app.shared.folders.log.join("self-test-dev").join(DEV_ID)
+}
+
+fn set_manifest(path: &Path, f: impl FnOnce(&mut serde_json::Value)) -> Result<Vec<u8>, String> {
+    let mut json: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    f(&mut json);
+    let bytes = serde_json::to_vec_pretty(&json).map_err(|e| e.to_string())?;
+    std::fs::write(path, &bytes).map_err(|e| e.to_string())?;
+    Ok(bytes)
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn self_test_packages(app: State<'_, App>) -> Result<SelfTestPackages, String> {
+    if app.self_test.is_none() {
+        return Err("Only for the self-test.".into());
+    }
+    if std::env::var_os("T_RUSTABLE_HOME").is_none() {
+        return Err(
+            "Skipped: set T_RUSTABLE_HOME, so that the mod steps do not change your mods.".into(),
+        );
+    }
+    let builtin = app.mods.call(|m| m.builtin_dir().to_path_buf()).await?;
+    let examples = builtin
+        .parent()
+        .ok_or("The built-in mod folder has no parent.")?
+        .join("examples");
+    let stamp = examples.join("example.stamp.tmod");
+    let mut package = t_rustable_tmod::read(
+        &std::fs::read(&stamp)
+            .map_err(|e| format!("{}: {e}. Run: cargo xtask build-mods", stamp.display()))?,
+    )
+    .map_err(|e| e.message)?;
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&package.files["manifest.json"]).map_err(|e| e.to_string())?;
+    manifest["version"] = "0.2.0".into();
+    package.files.insert(
+        "manifest.json".into(),
+        serde_json::to_vec_pretty(&manifest).map_err(|e| e.to_string())?,
+    );
+    let update = app.shared.folders.log.join("self-test-stamp-0.2.0.tmod");
+    let bytes = t_rustable_tmod::write(&package.files).map_err(|e| e.message)?;
+    std::fs::write(&update, bytes).map_err(|e| e.to_string())?;
+
+    let dev = dev_folder(&app);
+    let _ = std::fs::remove_dir_all(&dev);
+    copy_dir(&examples.join("example.stamp"), &dev).map_err(|e| e.to_string())?;
+    set_manifest(&dev.join("manifest.json"), |m| {
+        m["id"] = DEV_ID.into();
+        m["name"] = "Developer stamp".into();
+    })?;
+    Ok(SelfTestPackages {
+        stamp: stamp.display().to_string(),
+        stamp_update: update.display().to_string(),
+        dev_folder: dev.display().to_string(),
+    })
+}
+
+/// Changes the name in the manifest of the developer folder copy.
+#[tauri::command]
+pub fn self_test_rename_dev(app: State<'_, App>, name: String) -> Result<(), String> {
+    if app.self_test.is_none() {
+        return Err("Only for the self-test.".into());
+    }
+    set_manifest(&dev_folder(&app).join("manifest.json"), |m| {
+        m["name"] = name.into();
+    })
+    .map(drop)
+}

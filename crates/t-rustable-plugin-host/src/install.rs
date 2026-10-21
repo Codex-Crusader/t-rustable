@@ -111,7 +111,6 @@ impl ModStore {
         check: impl FnOnce(&Manifest, &[u8]) -> Result<(), HostError>,
     ) -> Result<Offer, HostError> {
         let package = t_rustable_tmod::read(bytes).map_err(|e| error(e.code, e.message))?;
-        check(&package.manifest, package.component())?;
         let previous = self.get(&package.manifest.id);
         if let Some(p) = &previous
             && p.sha256 == package.sha256
@@ -124,6 +123,7 @@ impl ModStore {
                 ),
             ));
         }
+        check(&package.manifest, package.component())?;
         let new_permissions = package
             .manifest
             .permissions

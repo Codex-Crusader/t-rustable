@@ -3806,6 +3806,8 @@ dependencies = [
  "t-rustable-core",
  "t-rustable-engine",
  "t-rustable-plugin-host",
+ "t-rustable-sdk",
+ "t-rustable-tmod",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

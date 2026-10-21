@@ -6,6 +6,8 @@ pub struct Folders {
     pub config: PathBuf,
     pub sessions: PathBuf,
     pub log: PathBuf,
+    /// Installed mods (ADR 0019).
+    pub mods: PathBuf,
 }
 
 impl Folders {
@@ -22,15 +24,18 @@ impl Folders {
                 config: roaming.join("T-Rustable").join("config"),
                 sessions: local.join("T-Rustable").join("sessions"),
                 log: local.join("T-Rustable").join("log"),
+                mods: roaming.join("T-Rustable").join("mods"),
             }
         } else {
             let home = env_dir("HOME").unwrap_or_else(|| PathBuf::from("."));
             let config = env_dir("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config"));
             let state = env_dir("XDG_STATE_HOME").unwrap_or_else(|| home.join(".local/state"));
+            let data = env_dir("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local/share"));
             Self {
                 config: config.join("t-rustable"),
                 sessions: state.join("t-rustable").join("sessions"),
                 log: state.join("t-rustable").join("log"),
+                mods: data.join("t-rustable").join("mods"),
             }
         }
     }
@@ -40,11 +45,12 @@ impl Folders {
             config: root.join("config"),
             sessions: root.join("sessions"),
             log: root.join("log"),
+            mods: root.join("mods"),
         }
     }
 
     pub fn create(&self) -> std::io::Result<()> {
-        for dir in [&self.config, &self.sessions, &self.log] {
+        for dir in [&self.config, &self.sessions, &self.log, &self.mods] {
             std::fs::create_dir_all(dir)?;
         }
         Ok(())

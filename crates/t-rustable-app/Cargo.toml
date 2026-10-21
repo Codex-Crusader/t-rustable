@@ -21,6 +21,8 @@ tauri-plugin-dialog = "2.8"
 t-rustable-core.workspace = true
 t-rustable-engine.workspace = true
 t-rustable-plugin-host.workspace = true
+t-rustable-sdk.workspace = true
+t-rustable-tmod = { workspace = true, features = ["build"] }
 
 [build-dependencies]
 tauri-build = "2.7"

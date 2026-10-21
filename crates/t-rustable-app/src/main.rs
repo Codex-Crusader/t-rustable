@@ -5,6 +5,8 @@
 mod bridge;
 mod commands;
 mod log;
+mod modcmds;
+mod modreg;
 mod modthread;
 mod panels;
 mod paths;
@@ -14,8 +16,9 @@ mod state;
 mod tiles;
 mod wire;
 
-use bridge::{ActionDto, DialogPicker, FileSettings, GuiBridge, ModUi, PanelDto};
+use bridge::{DialogPicker, FileSettings, GuiBridge};
 use commands::App;
+use modreg::Mods;
 use modthread::ModThread;
 use paths::{Folders, Resources};
 use state::Shared;
@@ -36,6 +39,8 @@ struct Args {
     /// Open the window without focus and below other windows.
     background: bool,
     files: Vec<PathBuf>,
+    /// `.tmod` packages to offer for install.
+    packages: Vec<PathBuf>,
 }
 
 fn args() -> Args {
@@ -43,6 +48,7 @@ fn args() -> Args {
         self_test: None,
         background: false,
         files: Vec::new(),
+        packages: Vec::new(),
     };
     let mut it = std::env::args().skip(1).peekable();
     while let Some(a) = it.next() {
@@ -56,6 +62,7 @@ fn args() -> Args {
                 println!("{}", banner());
                 std::process::exit(0);
             }
+            _ if a.to_ascii_lowercase().ends_with(".tmod") => out.packages.push(PathBuf::from(a)),
             _ if !a.starts_with("--") => out.files.push(PathBuf::from(a)),
             _ => {}
         }
@@ -66,62 +73,6 @@ fn args() -> Args {
 fn fail(message: &str) -> ! {
     eprintln!("{message}");
     std::process::exit(1);
-}
-
-/// Loads the built-in mods. Test mods (`test.*`) load only in the self-test.
-fn load_mods(host: &mut ModHost, dir: &std::path::Path, tests: bool, shared: &Shared) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut dirs: Vec<PathBuf> = entries.filter_map(|e| Some(e.ok()?.path())).collect();
-    dirs.sort();
-    for d in dirs {
-        let name = d
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let wanted = name.starts_with("t-rustable.") || (tests && name.starts_with("test."));
-        if !wanted || !d.join("manifest.json").is_file() {
-            continue;
-        }
-        if let Err(e) = host.load_dir(&d) {
-            shared
-                .log
-                .write("error", "mods", &format!("{}: {e}", d.display()));
-        }
-    }
-}
-
-fn mod_ui(host: &ModHost) -> Vec<ModUi> {
-    host.manifests()
-        .map(|m| ModUi {
-            id: m.id.clone(),
-            name: m.name.clone(),
-            disabled: false,
-            actions: m
-                .actions
-                .iter()
-                .map(|a| ActionDto {
-                    id: a.id.clone(),
-                    title: a.title.clone(),
-                    description: a.description.clone(),
-                    tool: a.tool,
-                    shortcut: a.shortcut.clone(),
-                })
-                .collect(),
-            toolbar: Vec::new(),
-            panels: m
-                .panels
-                .iter()
-                .map(|p| PanelDto {
-                    id: p.id.clone(),
-                    title: p.title.clone(),
-                    entry: p.entry.clone(),
-                })
-                .collect(),
-            dir: host.mod_dir(&m.id).map(PathBuf::from).unwrap_or_default(),
-        })
-        .collect()
 }
 
 /// A `trpanel` response. Every response has the panel CSP, also errors.
@@ -209,16 +160,31 @@ fn main() {
         bridge.clone(),
     );
     let mods = ModThread::start(move || {
-        let mut host = ModHost::new(services, Limits::default())
+        let host = ModHost::new(services, Limits::default())
             .unwrap_or_else(|e| fail(&format!("The mod host did not start: {e}")));
-        load_mods(&mut host, &mods_dir, tests, &load_shared);
-        let mut registry = load_bridge.mods.lock().unwrap();
-        for m in mod_ui(&host) {
-            registry.insert(m.id.clone(), m);
-        }
-        drop(registry);
-        host
+        Mods::start(host, load_shared, load_bridge, mods_dir, tests)
     });
+    // The developer folder watch. A tick waits until the last tick is done.
+    let poll = mods.clone();
+    std::thread::Builder::new()
+        .name("mod-watch".into())
+        .spawn(move || {
+            let busy = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                if busy.swap(true, std::sync::atomic::Ordering::AcqRel) {
+                    continue;
+                }
+                let done = busy.clone();
+                if !poll.send(move |m| {
+                    m.poll();
+                    done.store(false, std::sync::atomic::Ordering::Release);
+                }) {
+                    break;
+                }
+            }
+        })
+        .expect("start the mod watch thread");
 
     let background = args.background || args.self_test.is_some();
     let folders_sessions = shared.folders.sessions.clone();
@@ -235,6 +201,7 @@ fn main() {
             action_cancel: Mutex::new(None),
             self_test: args.self_test,
             files: args.files,
+            packages: args.packages,
             instance_lock: recovery::instance_lock(&folders_sessions),
         })
         .setup(move |app| {
@@ -318,6 +285,17 @@ fn main() {
             commands::panel_message,
             commands::set_panel_theme,
             commands::read_keymap,
+            modcmds::mod_list,
+            modcmds::install_offer,
+            modcmds::install_answer,
+            modcmds::mod_set_on,
+            modcmds::mod_remove,
+            modcmds::mod_reload,
+            modcmds::developer_mode,
+            modcmds::dev_folder_add,
+            modcmds::dev_folder_remove,
+            selftest::self_test_packages,
+            selftest::self_test_rename_dev,
             recovery::unclosed,
             recovery::recover,
             recovery::discard_unclosed,

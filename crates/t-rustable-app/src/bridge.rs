@@ -58,6 +58,8 @@ pub struct ModUi {
     /// The folder of the mod. The `trpanel` scheme serves panel files from it.
     #[serde(skip)]
     pub dir: PathBuf,
+    /// The mod comes from a developer folder.
+    pub developer: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -140,6 +142,23 @@ impl GuiBridge {
 
     pub fn registry_changed(&self) {
         self.emit("registry-changed", ());
+    }
+
+    /// A developer folder loaded again. Its open panels load again too.
+    pub fn mod_reloaded(&self, mod_id: &str) {
+        self.emit("mod-reloaded", mod_id.to_string());
+    }
+
+    /// A notice from the app, not from a mod.
+    pub fn app_notice(&self, level: &'static str, message: &str) {
+        self.emit(
+            "notify",
+            NotifyEvent {
+                mod_id: String::new(),
+                level,
+                message: message.into(),
+            },
+        );
     }
 
     /// Answers a `confirm-request`. Unknown IDs do nothing.
