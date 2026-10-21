@@ -49,4 +49,4 @@ This software is based in part on the work of the Independent JPEG Group.
 - `docs/ARCHITECTURE.md`: how the app works.
 - `docs/adr/`: the design decisions.
 - `CONTRIBUTING.md`: how to contribute.
-- `SECURITY.md`: the threat model and how to report a security problem.
+- `SECURITY.md`: the threat model and how to report a security problem..
