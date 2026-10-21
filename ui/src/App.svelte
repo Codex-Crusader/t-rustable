@@ -384,8 +384,9 @@
     margin-left: auto;
     padding: 0 6px;
     border-radius: 3px;
-    background: var(--tr-warning);
-    color: #000;
+    border: 2px solid var(--tr-warning);
+    color: var(--tr-text);
+    font-weight: 700;
   }
   .tool-input {
     position: fixed;

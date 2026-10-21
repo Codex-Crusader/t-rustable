@@ -188,8 +188,8 @@
     font-size: 0.85em;
   }
   .tag.developer {
-    background: var(--tr-warning);
-    color: #000;
+    border: 2px solid var(--tr-warning);
+    font-weight: 700;
   }
   .state.stopped,
   .state.failed {

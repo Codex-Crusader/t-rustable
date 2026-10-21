@@ -87,8 +87,7 @@
     margin-right: 6px;
     padding: 0 5px;
     border-radius: 3px;
-    background: var(--tr-warning);
-    color: #000;
+    border: 2px solid var(--tr-warning);
     font-weight: 700;
   }
   .warn {
