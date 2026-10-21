@@ -560,11 +560,14 @@ impl Mods {
         if installed_loaded {
             self.take_down(&id, true);
         }
-        self.store.install(offer)?;
-        if installed_loaded {
-            self.entries.remove(&id);
-        }
+        // On a failure the old version stays installed, and sync loads it again.
+        let result = self.store.install(offer);
         self.sync();
+        result?;
+        if installed_loaded {
+            // Open panels show the old version. Load them again.
+            self.bridge.mod_reloaded(&id);
+        }
         Ok(Some(id))
     }
 
@@ -601,12 +604,12 @@ impl Mods {
             self.take_down(id, false);
             self.entries.remove(id);
         }
-        self.store.remove(id)?;
-        if self.config.disabled.remove(id) {
+        let result = self.store.remove(id);
+        if result.is_ok() && self.config.disabled.remove(id) {
             let _ = self.save_config();
         }
         self.sync();
-        Ok(())
+        result
     }
 
     pub fn set_developer(&mut self, on: bool) -> Result<(), String> {
