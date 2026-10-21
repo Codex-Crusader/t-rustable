@@ -5,7 +5,14 @@
 
   const panels = $derived(
     app.mods.flatMap((m) =>
-      m.disabled ? [] : m.panels.map((p) => ({ key: `${m.id}/${p.id}`, modId: m.id, panel: p })),
+      m.disabled
+        ? []
+        : m.panels.map((p) => ({
+            key: `${m.id}/${p.id}`,
+            modId: m.id,
+            panel: p,
+            title: m.developer ? `${p.title} (${S.manager.source.developer})` : p.title,
+          })),
     ),
   );
   const current = $derived(panels.find((p) => p.key === app.activePanel) ?? panels[0]);
@@ -18,14 +25,14 @@
         {S.panels.choose}
         <select bind:value={() => current.key, (v) => (app.activePanel = v)}>
           {#each panels as p (p.key)}
-            <option value={p.key}>{p.panel.title}</option>
+            <option value={p.key}>{p.title}</option>
           {/each}
         </select>
       </label>
     {:else}
-      <h2>{current.panel.title}</h2>
+      <h2>{current.title}</h2>
     {/if}
-    {#key current.key}
+    {#key `${current.key}#${app.panelReloads[current.modId] ?? 0}`}
       <ModPanel modId={current.modId} panelId={current.panel.id} title={current.panel.title} entry={current.panel.entry} />
     {/key}
   </aside>

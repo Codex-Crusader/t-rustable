@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import InstallDialog from "./components/InstallDialog.svelte";
   import MenuBar, { type Item } from "./components/MenuBar.svelte";
+  import ModManager from "./components/ModManager.svelte";
   import Palette, { type Command } from "./components/Palette.svelte";
   import PanelHost from "./components/PanelHost.svelte";
   import Sidebar from "./components/Sidebar.svelte";
@@ -81,6 +83,13 @@
     },
     { id: "app.palette", title: S.menu.palette, run: () => (app.paletteOpen = true) },
     { id: "app.no-tool", title: S.menu.noTool, run: () => void app.selectTool(null) },
+    { id: "app.install-mod", title: S.menu.installMod, run: () => void app.install() },
+    { id: "app.manage-mods", title: S.menu.manageMods, run: () => (app.managerOpen = true) },
+    {
+      id: "app.developer-mode",
+      title: app.developer ? S.menu.developerOff : S.menu.developerOn,
+      run: () => void app.setDeveloper(!app.developer),
+    },
   ].map((a) => ({ ...a, source: S.palette.app })));
 
   /** Mod actions. A tool action selects the tool, another action runs once. */
@@ -91,7 +100,7 @@
         : m.actions.map((a) => ({
             id: `${m.id}/${a.id}`,
             title: a.title,
-            source: m.name,
+            source: m.developer ? `${m.name} (${S.manager.source.developer})` : m.name,
             disabled: !a.tool && !app.tab,
             run: () => void app.runAction(m.id, a.id, a.title, a.tool),
           })),
@@ -122,6 +131,7 @@
       ].map(item),
     },
     { label: S.menu.tools, items: ["app.no-tool", ...modActions.map((a) => a.id)].map(item) },
+    { label: S.menu.mods, items: ["app.install-mod", "app.manage-mods", "app.developer-mode"].map(item) },
   ]);
 
   /** Shortcuts that a text field keeps for itself. */
@@ -132,7 +142,7 @@
   }
 
   async function onKeyDown(e: KeyboardEvent) {
-    if (app.ask || app.paletteOpen) return;
+    if (app.ask || app.paletteOpen || app.managerOpen) return;
     const k = fromEvent(e);
     const id = k ? app.keymap.byKey.get(k) : undefined;
     const action = id ? actions.get(id) : undefined;
@@ -228,6 +238,7 @@
       <span>{S.status.zoom(Math.round(t.zoom * 100))}</span>
     {/if}
     <span>{app.tool ? S.status.tool(app.tool.title) : S.status.noTool}</span>
+    {#if app.developer}<span class="developer">{S.status.developer}</span>{/if}
   </footer>
 </div>
 
@@ -255,7 +266,13 @@
   <Palette commands={[...actions.values()]} onclose={() => (app.paletteOpen = false)} />
 {/if}
 
-{#if app.ask}
+{#if app.managerOpen}
+  <ModManager onclose={() => (app.managerOpen = false)} />
+{/if}
+
+{#if app.ask?.offer}
+  <InstallDialog ask={app.ask} offer={app.ask.offer} />
+{:else if app.ask}
   {@const ask = app.ask}
   <div class="backdrop">
     <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-text">
@@ -362,6 +379,13 @@
     background: var(--tr-surface);
     border-top: 1px solid var(--tr-border);
     color: var(--tr-text-muted);
+  }
+  .status .developer {
+    margin-left: auto;
+    padding: 0 6px;
+    border-radius: 3px;
+    background: var(--tr-warning);
+    color: #000;
   }
   .tool-input {
     position: fixed;

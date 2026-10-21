@@ -1,7 +1,7 @@
 // `--self-test <pdf>`: a scenario through the same calls that the UI uses. The Rust side
 // writes the report and stops the app.
 
-import { api, errorText, on } from "./api";
+import { api, errorCode, errorText, on } from "./api";
 import { app } from "./store.svelte";
 import type { DocInfo, PageInfo } from "./types";
 
@@ -252,6 +252,87 @@ export async function runSelfTest(path: string) {
     await until(() => Math.abs(page(0).width - height) < 0.01 && Math.abs(page(0).height - width) < 0.01);
     if (app.paletteOpen) throw new Error("the palette did not close");
     return { first };
+  });
+
+  // Mod install steps. They need T_RUSTABLE_HOME, so that they never change the real
+  // mod folder. Without it, they are skipped and say so.
+  let packages: { stamp: string; stampUpdate: string; devFolder: string } | null = null;
+  let skipped = "";
+  try {
+    packages = await api.selfTestPackages();
+  } catch (e) {
+    skipped = errorText(e);
+  }
+  const modStep = (name: string, f: (p: NonNullable<typeof packages>) => Promise<unknown>) =>
+    step(name, async () => (packages ? f(packages) : { skipped }));
+  const STAMP = "example.stamp";
+  const row = (key: string) => app.modRows.find((r) => r.key === key);
+  const loaded = (id: string) => app.mods.some((m) => m.id === id);
+
+  /** Starts an install and answers the permission screen. Returns the offer. */
+  const install = async (path: string, yes: boolean) => {
+    const done = app.install(path);
+    await until(() => app.ask?.offer !== undefined);
+    const offer = app.ask!.offer!;
+    app.ask!.resolve(yes);
+    await done;
+    return offer;
+  };
+
+  await modStep("mods: install a package", async (p) => {
+    const offer = await install(p.stamp, true);
+    if (offer.newPermissions.length !== 3 || offer.previousVersion !== null) throw new Error(JSON.stringify(offer));
+    await until(() => loaded(STAMP) && row(STAMP)?.source === "installed");
+    return { id: offer.id, permissions: offer.permissions, sha256: offer.sha256.slice(0, 12) };
+  });
+
+  await modStep("mods: use the installed stamp", async () => {
+    const before = page(0).revision;
+    await app.selectTool(STAMP, "stamp", "Stamp");
+    await drag(0, [300, 300], [300, 300]);
+    await changed(0, before);
+  });
+
+  await modStep("mods: same package again", async (p) => {
+    try {
+      await api.installOffer(p.stamp);
+    } catch (e) {
+      if (errorCode(e) === "already-installed") return;
+      throw e;
+    }
+    throw new Error("the same package installed twice");
+  });
+
+  await modStep("mods: turn off and on", async () => {
+    await api.modSetOn(STAMP, false);
+    await until(() => !loaded(STAMP) && row(STAMP)?.state === "off" && app.tool === null);
+    await api.modSetOn(STAMP, true);
+    await until(() => loaded(STAMP) && row(STAMP)?.state === "on");
+  });
+
+  await modStep("mods: update", async (p) => {
+    const offer = await install(p.stampUpdate, true);
+    if (offer.previousVersion !== "0.1.0" || offer.newPermissions.length) throw new Error(JSON.stringify(offer));
+    await until(() => row(STAMP)?.version === "0.2.0" && loaded(STAMP));
+  });
+
+  await modStep("mods: developer folder loads again", async (p) => {
+    const DEV = "example.dev-stamp";
+    await api.devFolderAdd(p.devFolder);
+    await until(() => app.mods.some((m) => m.id === DEV && m.developer));
+    const start = performance.now();
+    await api.selfTestRenameDev("Renamed stamp");
+    await until(() => app.mods.find((m) => m.id === DEV)?.name === "Renamed stamp", 20000);
+    const ms = Math.round(performance.now() - start);
+    await api.devFolderRemove(p.devFolder);
+    await api.developerMode(false);
+    await until(() => !loaded(DEV));
+    return { reloadMs: ms };
+  });
+
+  await modStep("mods: remove", async () => {
+    await api.modRemove(STAMP);
+    await until(() => !loaded(STAMP) && row(STAMP) === undefined);
   });
 
   await step("save", async () => {

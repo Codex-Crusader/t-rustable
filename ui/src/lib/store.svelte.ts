@@ -4,7 +4,7 @@ import { api, errorCode, errorText, on, type AppInfo } from "./api";
 import { buildKeymap, DEFAULT_KEYS, type Keymap } from "./keymap";
 import { S } from "./strings";
 import { CSS_PER_POINT, schemeBase } from "./tiles";
-import type { DocId, DocInfo, Hit, ModUi, PageId, Shape } from "./types";
+import type { DocId, DocInfo, Hit, ModRow, ModUi, Offer, PageId, Shape } from "./types";
 
 export const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
 
@@ -51,16 +51,24 @@ export interface Ask {
   message: string;
   /** Ask for a password. The answer is the text, or null after Cancel. */
   password?: boolean;
+  /** A package to install. The dialog shows its permissions. */
+  offer?: Offer;
   resolve: (yes: boolean, value?: string) => void;
 }
 
 export type Theme = "light" | "dark" | "high-contrast";
 
 class AppState {
-  info = $state<AppInfo>({ version: "", platform: "windows", selfTest: null, files: [] });
+  info = $state<AppInfo>({ version: "", platform: "windows", selfTest: null, files: [], packages: [] });
   tabs = $state<Tab[]>([]);
   activeDoc = $state<DocId | null>(null);
   mods = $state<ModUi[]>([]);
+  /** All mods with their source and state, for the mod manager. */
+  modRows = $state<ModRow[]>([]);
+  developer = $state(false);
+  managerOpen = $state(false);
+  /** Increments for a mod after its developer folder loaded again, so its panels load again. */
+  panelReloads = $state<Record<string, number>>({});
   /** The active tool: a mod ID and the action that started it. */
   tool = $state<{ modId: string; actionId: string; title: string } | null>(null);
   cursor = $state("default");
@@ -112,10 +120,13 @@ class AppState {
       await api.answerConfirm(e.id, yes);
     });
     await on("registry-changed", () => void this.loadRegistry());
+    await on("mod-reloaded", (id) => (this.panelReloads[id] = (this.panelReloads[id] ?? 0) + 1));
     await on("close-requested", () => void this.quit());
     await this.loadRegistry();
+    this.developer = await api.developerMode().catch(() => false);
     await this.offerRecovery();
     for (const f of this.info.files) await this.open(f);
+    for (const p of this.info.packages) await this.install(p);
     if (this.info.selfTest) {
       const { runSelfTest } = await import("./selftest");
       await runSelfTest(this.info.selfTest);
@@ -124,7 +135,79 @@ class AppState {
 
   async loadRegistry() {
     this.mods = await api.registry();
+    this.modRows = await api.modList();
+    // The Rust side already stopped the tool of a mod that is gone.
+    if (this.tool && !this.mods.some((m) => m.id === this.tool!.modId)) {
+      this.tool = null;
+      this.cursor = "default";
+    }
     await this.loadKeymap();
+  }
+
+  /** Offers a `.tmod` package for install. Without a path, the user picks one. */
+  async install(path: string | null = null) {
+    try {
+      const offer = await api.installOffer(path);
+      if (!offer) return;
+      const title = offer.previousVersion ? S.install.updateTitle(offer.name) : S.install.title(offer.name);
+      const yes = await new Promise<boolean>((resolve) =>
+        this.enqueue({ title, message: offer.description, offer }, (y) => resolve(y)),
+      );
+      const id = await api.installAnswer(offer.token, yes);
+      if (id) this.toast("success", offer.previousVersion ? S.install.updated(offer.name) : S.install.done(offer.name));
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async setModOn(row: ModRow, on: boolean) {
+    try {
+      await api.modSetOn(row.key, on);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async removeMod(row: ModRow) {
+    if (!row.id || !(await this.confirm(S.manager.removeTitle, S.manager.removeMessage(row.name)))) return;
+    try {
+      await api.modRemove(row.id);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async reloadMod(row: ModRow) {
+    try {
+      await api.modReload(row.key);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async setDeveloper(on: boolean) {
+    try {
+      this.developer = await api.developerMode(on);
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async addDevFolder() {
+    try {
+      if (await api.devFolderAdd()) this.developer = true;
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  async removeDevFolder(row: ModRow) {
+    if (!row.folder) return;
+    try {
+      await api.devFolderRemove(row.folder);
+    } catch (e) {
+      this.fail(e);
+    }
   }
 
   /** Builds the shortcuts from the defaults, keymap.json, and the mod suggestions. */

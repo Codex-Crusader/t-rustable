@@ -2,13 +2,27 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { DocId, DocInfo, Hit, ModUi, OutlineItem, PageId, PointerReply, Shape, TextRun } from "./types";
+import type {
+  DocId,
+  DocInfo,
+  Hit,
+  ModRow,
+  ModUi,
+  Offer,
+  OutlineItem,
+  PageId,
+  PointerReply,
+  Shape,
+  TextRun,
+} from "./types";
 
 export interface AppInfo {
   version: string;
   platform: "windows" | "linux";
   selfTest: string | null;
   files: string[];
+  /** `.tmod` packages from the command line. */
+  packages: string[];
 }
 
 export interface Mods {
@@ -65,6 +79,18 @@ export const api = {
   readKeymap: () => invoke<string | null>("read_keymap"),
   selfTestSecretCalls: () => invoke<number>("self_test_secret_calls"),
   toPdf: (doc: DocId, page: PageId, x: number, y: number) => invoke<[number, number]>("to_pdf", { doc, page, x, y }),
+  modList: () => invoke<ModRow[]>("mod_list"),
+  installOffer: (path: string | null = null) => invoke<Offer | null>("install_offer", { path }),
+  installAnswer: (token: number, install: boolean) => invoke<string | null>("install_answer", { token, install }),
+  modSetOn: (key: string, on: boolean) => invoke<void>("mod_set_on", { key, on }),
+  modRemove: (id: string) => invoke<void>("mod_remove", { id }),
+  modReload: (key: string) => invoke<void>("mod_reload", { key }),
+  developerMode: (on: boolean | null = null) => invoke<boolean>("developer_mode", { on }),
+  devFolderAdd: (path: string | null = null) => invoke<boolean>("dev_folder_add", { path }),
+  devFolderRemove: (path: string) => invoke<void>("dev_folder_remove", { path }),
+  selfTestPackages: () =>
+    invoke<{ stamp: string; stampUpdate: string; devFolder: string }>("self_test_packages"),
+  selfTestRenameDev: (name: string) => invoke<void>("self_test_rename_dev", { name }),
 };
 
 export interface Events {
@@ -74,6 +100,8 @@ export interface Events {
   "confirm-request": { id: number; modId: string; title: string; message: string };
   progress: { modId: string; fraction: number; message: string };
   "registry-changed": null;
+  /** A developer folder loaded again. The payload is the mod ID. */
+  "mod-reloaded": string;
   "panel-message": { modId: string; panelId: string; message: string };
   "close-requested": null;
 }

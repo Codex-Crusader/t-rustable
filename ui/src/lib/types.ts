@@ -50,6 +50,41 @@ export interface ModUi {
   actions: ActionInfo[];
   toolbar: { actionId: string; icon: string | null; tooltip: string }[];
   panels: { id: string; title: string; entry: string }[];
+  /** The mod comes from a developer folder. */
+  developer: boolean;
+}
+
+export type Permission = "document.read" | "document.edit" | "ui" | "files.pick";
+
+/** One row of the mod manager. */
+export interface ModRow {
+  /** The mod ID, or the folder of a developer folder without a valid manifest. */
+  key: string;
+  id: string | null;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  source: "builtin" | "developer" | "installed";
+  state: "on" | "off" | "stopped" | "failed";
+  error: string | null;
+  permissions: Permission[];
+  folder: string | null;
+}
+
+/** A checked package that waits for the user's answer. */
+export interface Offer {
+  token: number;
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  permissions: Permission[];
+  /** Permissions that the installed version does not have. */
+  newPermissions: Permission[];
+  previousVersion: string | null;
+  sha256: string;
 }
 
 export interface Stroke {
