@@ -14,7 +14,7 @@ t-rustable mods pack .
 `mods pack` does these steps:
 
 1. It reads `manifest.json`.
-2. It takes the core module from `target/wasm32-unknown-unknown/release/<entry>` and makes a component of it. If there is no cargo output, it uses the `entry` file in the folder. Use `--module <file>` for another file.
+2. It takes the core module from `target/wasm32-unknown-unknown/release/<entry>` and makes a component of it. If there is no cargo output, it uses the `entry` file in the folder. Use `--module <file>` for another file, for example if you set `CARGO_TARGET_DIR` or your mod is in a cargo workspace with a shared `target` folder.
 3. It adds the panel folders and `README.md` or `LICENSE` if they exist.
 4. It applies the package rules below and checks the imports against the permissions.
 5. It writes `<id>-<version>.tmod` into the folder. Use `-o <file>` for another name.
@@ -58,6 +58,6 @@ Developer mode loads your mod folder directly, so you do not make a package afte
 2. Select Developer mode.
 3. Select Add developer folder, and pick your mod folder.
 
-The app packs the folder with the rules above and loads it. Then it checks the folder once each second. After `cargo build --release`, or after a change to `manifest.json` or a panel file, the mod loads again, and its open panels load again. If the new build fails, the old build stays loaded, and the app shows the error. Load again in the mod manager does the same at once.
+The app packs the folder with the rules above and loads it. It looks for the build in `target/wasm32-unknown-unknown/release/` inside the folder, so do not set `CARGO_TARGET_DIR` for a mod in developer mode. Then it checks the folder once each second. After `cargo build --release`, or after a change to `manifest.json` or a panel file, the mod loads again, and its open panels load again. If the new build fails, the old build stays loaded, and the app shows the error. Load again in the mod manager does the same at once.
 
 While developer mode is on, the status bar shows "Developer mode", and your mod has the mark "(Developer)". A developer folder replaces an installed mod with the same ID until you turn off developer mode.
