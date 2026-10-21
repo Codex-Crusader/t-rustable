@@ -189,7 +189,37 @@ impl ModHost {
         }
         let bytes = std::fs::read(dir.join(&manifest.entry))
             .map_err(|e| invalid(format!("{} cannot be read: {e}", manifest.entry)))?;
-        let component = Component::new(&self.engine, &bytes)
+        let pre = self.prepare(&manifest, &bytes)?;
+        let (store, exports) = self.instantiate(&manifest, &pre)?;
+        let id = manifest.id.clone();
+        self.mods.insert(
+            id.clone(),
+            LoadedMod {
+                manifest,
+                dir: dir.to_path_buf(),
+                pre,
+                store,
+                exports,
+                failures: 0,
+                disabled: false,
+            },
+        );
+        Ok(id)
+    }
+
+    /// Checks a component against its manifest without running any of its code: the
+    /// imports match the permissions, this host has each imported function, and the
+    /// manifest worlds are exported. The install uses it before it writes any file.
+    pub fn check_component(&self, manifest: &Manifest, bytes: &[u8]) -> Result<(), HostError> {
+        self.prepare(manifest, bytes).map(drop)
+    }
+
+    fn prepare(
+        &self,
+        manifest: &Manifest,
+        bytes: &[u8],
+    ) -> Result<InstancePre<HostState>, HostError> {
+        let component = Component::new(&self.engine, bytes)
             .map_err(|e| invalid(format!("{} is not a valid component: {e}", manifest.entry)))?;
 
         // Permissions come from imports, before instantiation (ADR 0007).
@@ -208,6 +238,13 @@ impl ModHost {
                     .join(" "),
             ));
         }
+        // Linking fails when the mod imports a function that this host does not have,
+        // for example from a newer API version.
+        let pre = self.linker.instantiate_pre(&component).map_err(|e| {
+            invalid(format!(
+                "The mod needs a function that this version of T-Rustable does not have: {e}"
+            ))
+        })?;
         for (world, interface) in [(World::Interactive, "tool"), (World::Batch, "batch-job")] {
             if manifest.worlds.contains(&world) && !has_export(&component, &self.engine, interface)
             {
@@ -216,25 +253,7 @@ impl ModHost {
                 )));
             }
         }
-        let pre = self
-            .linker
-            .instantiate_pre(&component)
-            .map_err(|e| invalid(format!("The mod cannot be linked: {e}")))?;
-        let (store, exports) = self.instantiate(&manifest, &pre)?;
-        let id = manifest.id.clone();
-        self.mods.insert(
-            id.clone(),
-            LoadedMod {
-                manifest,
-                dir: dir.to_path_buf(),
-                pre,
-                store,
-                exports,
-                failures: 0,
-                disabled: false,
-            },
-        );
-        Ok(id)
+        Ok(pre)
     }
 
     fn instantiate(

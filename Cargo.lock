@@ -3739,10 +3739,12 @@ dependencies = [
 name = "t-rustable-plugin-host"
 version = "0.0.0"
 dependencies = [
+ "serde",
  "serde_json",
  "t-rustable-core",
  "t-rustable-engine",
  "t-rustable-sdk",
+ "t-rustable-tmod",
  "tempfile",
  "wasmtime",
  "wat",

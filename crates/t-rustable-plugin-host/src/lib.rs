@@ -4,6 +4,7 @@
 pub mod bindings;
 mod host;
 mod imports;
+pub mod install;
 pub mod services;
 mod state;
 
