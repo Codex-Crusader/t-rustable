@@ -145,7 +145,11 @@ jobs:
           tool: wasm-tools@1.262.0
       - name: Parse the WIT package
         run: wasm-tools component wit wit/ > /dev/null
-      - name: Build the template as a component
+      - name: Build the t-rustable command
+        run: |
+          cargo build -q --release -p t-rustable-cli
+          echo "$PWD/target/release" >> "$GITHUB_PATH"
+      - name: Build and pack the template
         run: bash mods/template/build.sh
       - name: Check the manifest JSON Schema against the shared cases
         run: |
@@ -153,8 +157,29 @@ jobs:
           python3 .github/scripts/check-manifest-schema.py
       - name: Check its imports against its manifest
         run: |
-          wasm-tools component wit mods/template/rotate_page.wasm > rotate_page.wit
+          unzip -p mods/template/com.example.rotate-page-0.1.0.tmod rotate_page.wasm > rotate_page.wasm
+          wasm-tools component wit rotate_page.wasm > rotate_page.wit
           cargo run -q -p t-rustable-sdk --example check-mod -- mods/template/manifest.json rotate_page.wit
+
+  fuzz:
+    name: Fuzz the .tmod reader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install nightly Rust
+        run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-fuzz@0.13.2
+      - name: Run tmod_read for 120 seconds
+        working-directory: fuzz
+        run: cargo +nightly fuzz run tmod_read corpus/tmod_read -- -max_total_time=120 -rss_limit_mb=1024
+      - name: Keep the failing input
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts
 
   third-party-licenses:
     name: THIRD_PARTY_LICENSES
