@@ -11,3 +11,7 @@ node_modules/
 /spikes/wit-compat/*/target
 /mods/target
 /crates/t-rustable-app/gen/
+/fuzz/target
+/fuzz/artifacts
+/fuzz/coverage
+/fuzz/Cargo.lock

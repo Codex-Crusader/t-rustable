@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "xtask"]
-exclude = ["spikes"]
+exclude = ["spikes", "fuzz"]
 
 [workspace.package]
 version = "0.0.0"
@@ -16,6 +16,7 @@ t-rustable-sdk = { path = "crates/t-rustable-sdk", default-features = false }
 t-rustable-core = { path = "crates/t-rustable-core" }
 t-rustable-engine = { path = "crates/t-rustable-engine" }
 t-rustable-plugin-host = { path = "crates/t-rustable-plugin-host" }
+t-rustable-tmod = { path = "crates/t-rustable-tmod" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

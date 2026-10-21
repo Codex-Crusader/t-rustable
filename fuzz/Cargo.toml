@@ -1,0 +1,23 @@
+# Fuzz targets for cargo-fuzz (nightly). CI runs them. This is its own workspace.
+[package]
+name = "t-rustable-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "PolyForm-Noncommercial-1.0.0"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+t-rustable-tmod = { path = "../crates/t-rustable-tmod" }
+
+[[bin]]
+name = "tmod_read"
+path = "fuzz_targets/tmod_read.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
