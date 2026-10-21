@@ -10,8 +10,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-t-rustable-sdk.workspace = true
-wit-component = "0.262"
+t-rustable-tmod = { workspace = true, features = ["build"] }
 
 [lints]
 workspace = true

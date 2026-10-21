@@ -1,0 +1,64 @@
+body {
+  margin: 0;
+  padding: 12px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: var(--tr-font-size, 14px) system-ui, sans-serif;
+}
+
+fieldset {
+  margin: 0 0 12px;
+  padding: 8px;
+  border: 1px solid var(--tr-border);
+  border-radius: var(--tr-radius);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+label {
+  display: block;
+  margin: 4px 0;
+}
+
+input[type="text"],
+input:not([type]) {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px;
+  background: var(--tr-bg);
+  color: var(--tr-text);
+  border: 1px solid var(--tr-border);
+  border-radius: var(--tr-radius);
+}
+
+button {
+  padding: 4px 8px;
+  background: var(--tr-surface-2);
+  color: var(--tr-text);
+  border: 1px solid var(--tr-border);
+  border-radius: var(--tr-radius);
+}
+
+button[type="submit"] {
+  background: var(--tr-accent);
+  color: var(--tr-accent-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--tr-focus);
+  outline-offset: 2px;
+}
+
+#status {
+  min-height: 1.5em;
+  color: var(--tr-text-muted);
+}
+
+#status.error {
+  color: var(--tr-danger);
+}

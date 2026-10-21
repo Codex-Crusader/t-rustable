@@ -1,0 +1,12 @@
+{
+  "id": "example.page-numbers",
+  "name": "Page numbers",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable examples",
+  "description": "A batch job that adds a page number such as \"Page 3 of 12\" at the bottom of each page.",
+  "license": "MIT",
+  "permissions": ["document.read", "document.edit"],
+  "entry": "page_numbers.wasm",
+  "worlds": ["batch"]
+}

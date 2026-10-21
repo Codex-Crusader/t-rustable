@@ -8,6 +8,8 @@ members = [
     "builtin/add-text",
     "builtin/page-tools",
     "builtin/shapes",
+    "examples/page-numbers",
+    "examples/stamp",
     "fixtures/batch-only",
     "fixtures/misbehave",
     "fixtures/panel",

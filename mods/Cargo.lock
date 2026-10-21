@@ -133,6 +133,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "page-numbers"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "t-rustable-sdk",
+]
+
+[[package]]
 name = "page-tools"
 version = "0.1.0"
 dependencies = [
@@ -222,6 +231,15 @@ dependencies = [
 name = "shapes"
 version = "0.1.0"
 dependencies = [
+ "t-rustable-sdk",
+]
+
+[[package]]
+name = "stamp"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
  "t-rustable-sdk",
 ]
 

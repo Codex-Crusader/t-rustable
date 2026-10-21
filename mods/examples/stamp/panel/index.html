@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Stamp</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <form id="form">
+      <fieldset>
+        <legend>Text</legend>
+        <div class="presets">
+          <button type="button" data-text="APPROVED">APPROVED</button>
+          <button type="button" data-text="DRAFT">DRAFT</button>
+          <button type="button" data-text="CONFIDENTIAL">CONFIDENTIAL</button>
+        </div>
+        <label for="text">Stamp text</label>
+        <input id="text" name="text" maxlength="40" autocomplete="off" />
+      </fieldset>
+      <fieldset id="colors">
+        <legend>Color</legend>
+      </fieldset>
+      <button type="submit">Use this stamp</button>
+    </form>
+    <p id="status" role="status"></p>
+    <script src="panel.js"></script>
+  </body>
+</html>

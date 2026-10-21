@@ -1,0 +1,16 @@
+{
+  "id": "example.stamp",
+  "name": "Stamp",
+  "version": "0.1.0",
+  "apiVersion": "0.1",
+  "author": "T-Rustable examples",
+  "description": "Adds a stamp such as APPROVED or DRAFT where you click on a page. The Stamp panel sets the text and the color.",
+  "license": "MIT",
+  "permissions": ["document.read", "document.edit", "ui"],
+  "entry": "stamp.wasm",
+  "worlds": ["interactive"],
+  "panels": [{ "id": "options", "title": "Stamp", "entry": "panel/index.html" }],
+  "actions": [
+    { "id": "stamp", "title": "Stamp", "description": "Click on a page to add the stamp.", "tool": true }
+  ]
+}

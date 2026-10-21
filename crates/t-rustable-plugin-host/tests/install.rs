@@ -178,3 +178,21 @@ fn clean_removes_what_a_stopped_install_left() {
     assert!(!dir.path().join(".staging").exists());
     assert!(!dir.path().join(".old").exists());
 }
+
+#[test]
+fn the_example_packages_install_and_load() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = ModStore::new(dir.path());
+    let mut host = new_host();
+    for id in ["example.stamp", "example.page-numbers"] {
+        let path = common::repo().join(format!("target/examples/{id}.tmod"));
+        let bytes = std::fs::read(&path)
+            .unwrap_or_else(|e| panic!("{}: {e}. Run: cargo xtask build-mods", path.display()));
+        let offer = store
+            .stage(&bytes, |m, c| host.check_component(m, c))
+            .unwrap();
+        let installed = store.install(offer).unwrap();
+        assert_eq!(host.load_dir(&installed.dir).unwrap(), id);
+    }
+    assert!(dir.path().join("example.stamp/panel/panel.js").is_file());
+}

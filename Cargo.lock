@@ -5622,8 +5622,7 @@ dependencies = [
 name = "xtask"
 version = "0.0.0"
 dependencies = [
- "t-rustable-sdk",
- "wit-component 0.262.0",
+ "t-rustable-tmod",
 ]
 
 [[package]]
