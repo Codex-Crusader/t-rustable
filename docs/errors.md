@@ -1,6 +1,6 @@
 # Errors
 
-Status: format, the codes of the mod API 0.1, and the codes of the core and the plugin host (Milestone 3). More codes come with the features that use them.
+Status: format, the codes of the mod API 0.1, the codes of the core and the plugin host (Milestone 3), and the codes of the mod install (Milestone 5). More codes come with the features that use them.
 
 ## Format
 
@@ -76,3 +76,24 @@ The host gives these codes when a mod call fails as a whole. They are not `api-e
 | `mod-disabled` | The mod failed 3 times in a row, so the host disabled it. The user can turn it on again. |
 | `not-found` | No mod with this ID is loaded. |
 | `internal` | An error in the host itself. The log has the details. |
+
+## Codes of the mod install
+
+The install, `t-rustable mods pack`, and developer folders give these codes. The rules are in `docs/mod-api/packaging.md` and ADR 0019.
+
+| Code | Meaning |
+|---|---|
+| `package-too-large` | The package, one file, or all files together are larger than the limit, or a large file is compressed more than 100 times. |
+| `not-a-package` | The file is not a zip file, or its zip records are damaged or have too many entries. |
+| `unsafe-name` | A file name has a character that is not allowed, a `.` or `..` part, a Windows reserved name, or a path that is too long or too deep. |
+| `case-collision` | Two names differ only in case. Windows cannot keep both. |
+| `duplicate-name` | Two entries have the same name, or a file has the same name as a folder. |
+| `unsupported-entry` | An entry is encrypted, is a link, or uses a compression other than stored or deflate, or the package uses zip64. |
+| `file-not-allowed` | The package has a file that it must not have. The message names it. |
+| `invalid-manifest` | `manifest.json` is missing or not valid. The message names each problem. |
+| `missing-file` | The manifest names a file, for example the `entry` or a panel file, that the package does not have. |
+| `reserved-id` | The mod ID starts with `t-rustable.` or `test.`, which only built-in mods and test mods can use. |
+| `invalid-component` | The component is not valid, its imports do not match the permissions, it does not export what its worlds need, or it imports a function that this version of T-Rustable does not have. |
+| `already-installed` | The same package (the same SHA-256) is installed. |
+| `not-installed` | The mod to remove is not installed. Built-in mods cannot be removed. |
+| `io-error` | A file operation failed during the install. The installed mods did not change. |

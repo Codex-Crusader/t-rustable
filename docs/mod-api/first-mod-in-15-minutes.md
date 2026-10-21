@@ -2,7 +2,7 @@
 
 You make a mod with two actions: "Rotate page" (from the template) and "Delete page" (you add it). You write it in Rust and build it as a WebAssembly component.
 
-Status: API 0.1 is in review. The app cannot load mods yet: the mod host comes in Milestone 3, and `.tmod` packages come in Milestone 5. You can build and check your mod today. You cannot run it in the app yet.
+You need T-Rustable with the `t-rustable` command. In the T-Rustable repository, `cargo run -p t-rustable-cli --` gives the same command.
 
 ## 1. Install the tools (5 minutes)
 
@@ -13,21 +13,15 @@ Status: API 0.1 is in review. The app cannot load mods yet: the mod host comes i
    rustup target add wasm32-unknown-unknown
    ```
 
-3. Install `wasm-tools`. Download the archive for your platform from https://github.com/bytecodealliance/wasm-tools/releases, and put `wasm-tools` on your `PATH`.
-
 Do not use the `wasm32-wasip2` target. It adds WASI imports, and T-Rustable refuses a mod with WASI imports.
 
-## 2. Copy the template (1 minute)
+## 2. Make the mod folder (1 minute)
 
-Copy `mods/template` from the T-Rustable repository to a new folder, for example `page-tools`.
-
-If your folder is outside the T-Rustable repository, change the SDK dependency in `Cargo.toml` to:
-
-```toml
-t-rustable-sdk = { git = "https://github.com/Codex-Crusader/t-rustable" }
+```
+t-rustable mods new "Page tools" --id com.yourname.page-tools
 ```
 
-In `Cargo.toml`, change `name` to `page-tools`. In `manifest.json`, change `id` to your own ID (for example `com.yourname.page-tools`), and set `name`, `author`, and `entry` (`page_tools.wasm`). In `build.sh` and `build.ps1`, change `rotate_page` to `page_tools`.
+The command writes the folder `page-tools` from the template. It sets the name, the ID, the crate name, and `entry` (`page_tools.wasm`). The SDK comes from the T-Rustable git repository. In `manifest.json`, set `author` and `description`.
 
 ## 3. Read the code (2 minutes)
 
@@ -80,29 +74,23 @@ fn run_action(document: Option<&Doc>, action_id: String, _args: String) -> Resul
 }
 ```
 
-## 5. Build (2 minutes)
+## 5. Build and pack (2 minutes)
 
 On Linux, run `./build.sh`. On Windows, run `./build.ps1`.
 
-The script runs `cargo build --release`, then `wasm-tools component new` to make the component, and `wasm-tools validate` to check it. Then it prints the imports:
+The script runs `cargo build --release`, then `t-rustable mods pack .`. The pack step makes a component of the build, checks it, and writes `com.yourname.page-tools-0.1.0.tmod`. It prints the permissions:
 
 ```
-import t-rustable:api/types@0.1.1;
-import t-rustable:api/document@0.1.1;
-import t-rustable:api/edit@0.1.1;
-import t-rustable:api/ui@0.1.1;
+Permissions: document.read, document.edit, ui
 ```
 
-## 6. Check the permissions (1 minute)
+The imports decide the permissions: `document` needs `document.read`, `edit` needs `document.edit`, `ui` needs `ui`. The `permissions` in `manifest.json` must match exactly, or the pack step stops and names the difference. If you add `host::log` calls, nothing changes: `host` needs no permission. If you add `files::pick`, add `files.pick` to the manifest.
 
-The imports decide the permissions: `document` needs `document.read`, `edit` needs `document.edit`, `ui` needs `ui`. The `permissions` in `manifest.json` must match exactly. In the T-Rustable repository, run:
+## 6. Install and try it (1 minute)
 
-```
-wasm-tools component wit page_tools.wasm > page_tools.wit
-cargo run -p t-rustable-sdk --example check-mod -- path/to/manifest.json page_tools.wit
-```
+In T-Rustable, select Mods, Install mod, and pick the `.tmod` file. Read the permission screen, and select Install. Open a PDF, and run Rotate page or Delete page from the Tools menu or the command palette (Ctrl+K).
 
-If you add `host::log` calls, nothing changes: `host` needs no permission. If you add `files::pick`, add `files.pick` to the manifest.
+While you work on the mod, use developer mode instead. It loads the folder again after each `cargo build --release`. See [packages and developer mode](packaging.md).
 
 ## Next steps
 

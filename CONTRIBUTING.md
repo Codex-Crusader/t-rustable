@@ -24,7 +24,7 @@ You need Rust 1.96 or later, a C++ compiler (for the vendored qpdf), and bash. O
    scripts/fetch-pdfium.sh
    ```
 
-3. Build the built-in mods, the test mods, and the template into `target/mods/`:
+3. Build the built-in mods, the test mods, and the template into `target/mods/`, and the example mods into `target/examples/`:
 
    ```
    cargo xtask build-mods
@@ -47,13 +47,20 @@ Start the app with a PDF file:
 cargo run -p t-rustable-app -- path/to/file.pdf
 ```
 
-The GUI self-test opens a generated PDF, runs the built-in mods through the UI code, checks the panel sandbox, saves, and writes a JSON report. It uses a separate home folder, so it does not touch your settings:
+The GUI self-test opens a generated PDF, runs the built-in mods through the UI code, checks the panel sandbox, installs and removes the stamp example, loads a developer folder again, saves, and writes a JSON report. It uses a separate home folder, so it does not touch your settings or your mods. Without `T_RUSTABLE_HOME`, the mod steps are skipped:
 
 ```
 T_RUSTABLE_HOME=target/self-test cargo run -p t-rustable-app -- --self-test
 ```
 
-The mods in `mods/builtin/` and `mods/fixtures/` are a second workspace, `mods/Cargo.toml`. The template in `mods/template/` is its own workspace, so that a mod author can copy it.
+The mods in `mods/builtin/`, `mods/fixtures/`, and `mods/examples/` are a second workspace, `mods/Cargo.toml`. The template in `mods/template/` is its own workspace, so that a mod author can copy it.
+
+The `.tmod` reader has a fuzz target in `fuzz/`, which is outside the workspace. CI runs it for 120 seconds. To run it on Linux with nightly Rust and `cargo-fuzz`:
+
+```
+cd fuzz
+cargo +nightly fuzz run tmod_read corpus/tmod_read -- -max_total_time=120
+```
 
 ## Project rules
 

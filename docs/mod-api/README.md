@@ -2,7 +2,7 @@
 
 A T-Rustable mod is a WebAssembly component. It uses the WIT package `t-rustable:api@0.1.1` in `wit/`. Built-in tools are mods too, and they use the same API.
 
-Status: design for review (REVIEW 2). There is no host until Milestone 3. The template and the guide are checked by building them, not by running them in the app.
+Status: the app loads built-in mods, installs `.tmod` packages, and loads developer folders (Milestone 5).
 
 License of this folder: MIT. You can copy the code samples into any mod.
 
@@ -10,6 +10,8 @@ License of this folder: MIT. You can copy the code samples into any mod.
 
 - [Your first mod in 15 minutes](first-mod-in-15-minutes.md)
 - [Mod template](../../mods/template/)
+- [Example mods](../../mods/examples/): a stamp tool with a panel, and a page numbers batch job
+- [Packages and developer mode](packaging.md)
 
 ## Reference
 
@@ -25,6 +27,7 @@ License of this folder: MIT. You can copy the code samples into any mod.
 | [permissions](permissions.md) | Import to permission table |
 | [manifest](manifest.md) | `manifest.json` and its [JSON Schema](manifest.schema.json) |
 | [versioning](versioning.md) | How the API changes without breaking mods |
+| [packaging](packaging.md) | `.tmod` rules, `mods pack`, install, update, developer mode |
 
 ## Rules that apply to every function
 

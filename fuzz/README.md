@@ -1,6 +1,6 @@
 # Fuzz tests
 
-Fuzz targets for the `.tmod` reader (ADR 0009). They need a nightly toolchain and cargo-fuzz.
+Fuzz targets for the `.tmod` reader (ADR 0009 and ADR 0019). They need a nightly toolchain and cargo-fuzz.
 
 ```
 cargo install cargo-fuzz

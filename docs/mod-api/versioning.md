@@ -31,4 +31,4 @@ While the API is `0.x`, a compatible release changes the last number (`0.1.0` to
 ## For mod authors
 
 - Set `apiVersion` to the first two numbers, for example `"0.1"`.
-- Build with the newest SDK for that version. It can use functions that older hosts do not have: such a mod needs that host version. The `.tmod` install (Milestone 5) refuses a mod that imports a function the host does not have.
+- Build with the newest SDK for that version. It can use functions that older hosts do not have: such a mod needs that host version. The install refuses a mod that imports a function that the host does not have, and the message names the function.

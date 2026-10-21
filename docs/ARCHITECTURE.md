@@ -35,9 +35,10 @@ Status: design after Milestone 1. The M1 spike results are in `docs/spikes/m1-re
 | `t-rustable-sdk` | Shared types for mods and Rust helpers for mod authors. | MIT |
 | `t-rustable-core` | Sessions, `IdMap`, command registry, transactions, checkpoints, undo and redo, journal, save pipeline. | PolyForm NC |
 | `t-rustable-engine` | The engine actor thread. Adapters for PDFium and qpdf. | PolyForm NC |
-| `t-rustable-plugin-host` | Loads WASM components, checks imports against the manifest, applies limits, implements the WIT interfaces. | PolyForm NC |
+| `t-rustable-plugin-host` | Loads WASM components, checks imports against the manifest, applies limits, implements the WIT interfaces. Keeps the store of installed mods. | PolyForm NC |
+| `t-rustable-tmod` | Reads, checks, and writes `.tmod` packages (ADR 0019). Its `build` feature makes components for `mods pack`. No WASM engine. | PolyForm NC |
 | `t-rustable-app` | Tauri shell. Connects the Svelte UI to the core. | PolyForm NC |
-| `t-rustable-cli` | Batch front end. Uses the same core as the app. | PolyForm NC |
+| `t-rustable-cli` | Batch front end. Uses the same core as the app. In Milestone 5 it has `mods new` and `mods pack`. | PolyForm NC |
 
 Dependency rules:
 
@@ -245,12 +246,16 @@ The app uses the standard folders of each platform.
 
 | Content | Linux | Windows |
 |---|---|---|
-| Configuration (`keymap.json`, settings) | `$XDG_CONFIG_HOME/t-rustable` | `%APPDATA%\T-Rustable\config` |
-| Installed mods (`mods/<id>/`) | `$XDG_DATA_HOME/t-rustable/mods` | `%APPDATA%\T-Rustable\mods` |
+| Configuration (`keymap.json`, `mods.json`, mod settings) | `$XDG_CONFIG_HOME/t-rustable` | `%APPDATA%\T-Rustable\config` |
+| Installed mods (`<id>/`, `index.json`) | `$XDG_DATA_HOME/t-rustable/mods` | `%APPDATA%\T-Rustable\mods` |
 | Journals and checkpoints | `$XDG_STATE_HOME/t-rustable/sessions` | `%LOCALAPPDATA%\T-Rustable\sessions` |
 | Log | `$XDG_STATE_HOME/t-rustable/log` | `%LOCALAPPDATA%\T-Rustable\log` |
 
 Mods get their settings through the `host` interface only. Settings have a size limit. Mods have no file access to these folders.
+
+`mods.json` holds the mods that the user turned off, developer mode, and the developer folders. The mod folder also has `.staging/` (a package that waits for the user's answer) and `.dev/` (packed builds of developer folders). The app deletes both at start.
+
+The app loads mods from three sources, in this order: built-in mods next to the program, developer folders (only in developer mode), and installed mods. A mod ID loads from the first source that has it (ADR 0019). The mod thread owns the host and this registry, so a load, an unload, and a mod call never run at the same time.
 
 ## 13. Offline guarantees
 

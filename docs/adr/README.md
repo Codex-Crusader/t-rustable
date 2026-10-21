@@ -24,3 +24,4 @@ Each accepted ADR is a locked decision. It changes only through a new ADR that t
 | 0016 | Licenses of native libraries inside PDFium and qpdf | Accepted (amends 0010) |
 | 0017 | New text and images read upright, and mods can measure text | Accepted |
 | 0018 | GUI threads, tiles, and the bridge to mods | Accepted |
+| 0019 | Mod install, mod sources, and developer mode | Accepted |
