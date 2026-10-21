@@ -39,6 +39,8 @@ const FILES: [(&str, &str); 8] = [
 
 const TEMPLATE_CRATE: &str = "rotate-page";
 const TEMPLATE_ENTRY: &str = "rotate_page.wasm";
+const TEMPLATE_ID: &str = r#""id": "com.example.rotate-page""#;
+const TEMPLATE_NAME: &str = r#""name": "Rotate page""#;
 const TEMPLATE_SDK: &str = r#"t-rustable-sdk = { path = "../../crates/t-rustable-sdk" }"#;
 const SDK_GIT: &str = "https://github.com/Codex-Crusader/t-rustable";
 
@@ -89,12 +91,17 @@ pub fn run(args: NewMod) -> Result<PathBuf, String> {
         None => format!("t-rustable-sdk = {{ git = {SDK_GIT:?} }}"),
     };
 
-    let mut manifest: serde_json::Value =
-        serde_json::from_str(FILES[6].1).map_err(|e| e.to_string())?;
-    manifest["id"] = id.clone().into();
-    manifest["name"] = args.name.trim().into();
-    manifest["entry"] = entry.clone().into();
-    let manifest_json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())? + "\n";
+    // Text replacement keeps the order and the layout of the template manifest.
+    let quoted = |v: &str| serde_json::to_string(v).expect("a string");
+    let manifest_json = FILES[6]
+        .1
+        .replacen(TEMPLATE_ID, &format!("\"id\": {}", quoted(&id)), 1)
+        .replacen(
+            TEMPLATE_NAME,
+            &format!("\"name\": {}", quoted(args.name.trim())),
+            1,
+        )
+        .replace(TEMPLATE_ENTRY, &entry);
     Manifest::parse(&manifest_json).map_err(|problems| {
         let text: Vec<_> = problems.into_iter().map(|p| p.0).collect();
         text.join(" ")
@@ -140,6 +147,10 @@ mod tests {
         let cargo = FILES.iter().find(|f| f.0 == "Cargo.toml").unwrap().1;
         assert!(cargo.contains(&format!("name = \"{TEMPLATE_CRATE}\"")));
         assert!(cargo.contains(TEMPLATE_SDK));
-        assert!(FILES[6].0 == "manifest.json" && FILES[6].1.contains(TEMPLATE_ENTRY));
+        let manifest = FILES[6].1;
+        assert_eq!(FILES[6].0, "manifest.json");
+        for text in [TEMPLATE_ENTRY, TEMPLATE_ID, TEMPLATE_NAME] {
+            assert!(manifest.contains(text), "{text}");
+        }
     }
 }
