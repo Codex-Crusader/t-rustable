@@ -3800,7 +3800,6 @@ dependencies = [
 name = "t-rustable-app"
 version = "0.0.0"
 dependencies = [
- "png 0.18.1",
  "serde",
  "serde_json",
  "t-rustable-core",

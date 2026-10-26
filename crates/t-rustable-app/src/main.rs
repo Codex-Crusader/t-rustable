@@ -9,7 +9,6 @@ mod modcmds;
 mod modreg;
 mod modthread;
 mod panels;
-mod paths;
 mod recovery;
 mod selftest;
 mod state;
@@ -20,11 +19,11 @@ use bridge::{DialogPicker, FileSettings, GuiBridge};
 use commands::App;
 use modreg::Mods;
 use modthread::ModThread;
-use paths::{Folders, Resources};
 use state::Shared;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use t_rustable_core::fonts::Fonts;
+use t_rustable_core::paths::{Folders, Resources};
 use t_rustable_engine::Engine;
 use t_rustable_plugin_host::{Limits, ModHost, Services};
 use tauri::http::Response;
@@ -154,7 +153,10 @@ fn main() {
         fonts,
     };
     let (mods_dir, tests, load_shared, load_bridge) = (
-        resources.mods.clone(),
+        resources
+            .builtin_mods()
+            .unwrap_or_else(|e| fail(&e))
+            .to_path_buf(),
         args.self_test.is_some(),
         shared.clone(),
         bridge.clone(),

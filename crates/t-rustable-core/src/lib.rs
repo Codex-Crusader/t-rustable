@@ -7,6 +7,7 @@ pub mod error;
 pub mod fonts;
 pub mod ids;
 pub mod journal;
+pub mod paths;
 pub mod save;
 pub mod session;
 

@@ -339,6 +339,32 @@ pub struct Bitmap {
     pub bgra: Vec<u8>,
 }
 
+impl Bitmap {
+    /// PNG with `Fast` compression (M1: under 1 ms per tile).
+    pub fn to_png(&self) -> Vec<u8> {
+        let mut rgb = Vec::with_capacity((self.width * self.height * 3) as usize);
+        for row in self
+            .bgra
+            .chunks_exact(self.stride as usize)
+            .take(self.height as usize)
+        {
+            for px in row[..(self.width * 4) as usize].as_chunks::<4>().0 {
+                rgb.extend_from_slice(&[px[2], px[1], px[0]]);
+            }
+        }
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, self.width, self.height);
+        encoder.set_color(png::ColorType::Rgb);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_compression(png::Compression::Fast);
+        // Writing to a Vec cannot fail, and the size matches the header.
+        let mut writer = encoder.write_header().expect("PNG header");
+        writer.write_image_data(&rgb).expect("PNG data");
+        drop(writer);
+        out
+    }
+}
+
 /// Result of one op in `Request::Apply`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Applied {
@@ -413,3 +439,27 @@ impl std::fmt::Display for EngineError {
 }
 
 impl std::error::Error for EngineError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn png_skips_the_row_padding() {
+        let b = Bitmap {
+            width: 2,
+            height: 2,
+            stride: 12,
+            bgra: vec![
+                0, 0, 255, 255, 0, 255, 0, 255, 9, 9, 9, 9, //
+                255, 0, 0, 255, 0, 0, 0, 255, 9, 9, 9, 9,
+            ],
+        };
+        let png = b.to_png();
+        let decoder = png::Decoder::new(std::io::Cursor::new(png));
+        let mut reader = decoder.read_info().unwrap();
+        let mut buf = vec![0; reader.output_buffer_size().unwrap()];
+        reader.next_frame(&mut buf).unwrap();
+        assert_eq!(&buf[..12], &[255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0]);
+    }
+}

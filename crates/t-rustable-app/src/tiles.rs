@@ -184,7 +184,7 @@ pub fn tile(shared: &Shared, path: &str) -> Result<Arc<Vec<u8>>, TileError> {
     let result = render(shared, path, &session, key.page, key.scale(), clip);
     shared.in_flight.lock().unwrap().remove(path);
     let bitmap = result?;
-    let png = Arc::new(encode_png(&bitmap));
+    let png = Arc::new(bitmap.to_png());
     shared.tiles.put(key, png.clone());
     Ok(png)
 }
@@ -222,30 +222,6 @@ fn render(
         }
     }
     Err(TileError::Failed("The engine restarted again.".into()))
-}
-
-/// PNG with `Fast` compression (M1: under 1 ms per tile).
-pub fn encode_png(b: &Bitmap) -> Vec<u8> {
-    let mut rgb = Vec::with_capacity((b.width * b.height * 3) as usize);
-    for row in b
-        .bgra
-        .chunks_exact(b.stride as usize)
-        .take(b.height as usize)
-    {
-        for px in row[..(b.width * 4) as usize].as_chunks::<4>().0 {
-            rgb.extend_from_slice(&[px[2], px[1], px[0]]);
-        }
-    }
-    let mut out = Vec::new();
-    let mut encoder = png::Encoder::new(&mut out, b.width, b.height);
-    encoder.set_color(png::ColorType::Rgb);
-    encoder.set_depth(png::BitDepth::Eight);
-    encoder.set_compression(png::Compression::Fast);
-    // Writing to a Vec cannot fail, and the size matches the header.
-    let mut writer = encoder.write_header().expect("PNG header");
-    writer.write_image_data(&rgb).expect("PNG data");
-    drop(writer);
-    out
 }
 
 #[cfg(test)]
@@ -295,24 +271,5 @@ mod tests {
         assert_eq!(cache.used(), 200);
         cache.forget_pages(1, &HashSet::from([PageId(7)]));
         assert_eq!(cache.used(), 0);
-    }
-
-    #[test]
-    fn png_skips_the_row_padding() {
-        let b = Bitmap {
-            width: 2,
-            height: 2,
-            stride: 12,
-            bgra: vec![
-                0, 0, 255, 255, 0, 255, 0, 255, 9, 9, 9, 9, //
-                255, 0, 0, 255, 0, 0, 0, 255, 9, 9, 9, 9,
-            ],
-        };
-        let png = encode_png(&b);
-        let decoder = png::Decoder::new(std::io::Cursor::new(png));
-        let mut reader = decoder.read_info().unwrap();
-        let mut buf = vec![0; reader.output_buffer_size().unwrap()];
-        reader.next_frame(&mut buf).unwrap();
-        assert_eq!(&buf[..12], &[255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0]);
     }
 }

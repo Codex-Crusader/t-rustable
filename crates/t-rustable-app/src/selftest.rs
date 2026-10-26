@@ -2,7 +2,6 @@
 //! the result here. The app then writes the report and stops.
 
 use crate::commands::App;
-use crate::tiles::encode_png;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use t_rustable_engine::Bitmap;
@@ -114,7 +113,7 @@ pub fn picture(dir: &Path) -> PathBuf {
             .collect(),
     };
     let path = dir.join("self-test.png");
-    let _ = std::fs::write(&path, encode_png(&bitmap));
+    let _ = std::fs::write(&path, bitmap.to_png());
     path
 }
 

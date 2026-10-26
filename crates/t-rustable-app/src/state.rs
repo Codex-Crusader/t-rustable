@@ -4,7 +4,6 @@
 //! out first. The mod thread can hold a session lock while it calls the bridge.
 
 use crate::log::Log;
-use crate::paths::Folders;
 use crate::tiles::TileCache;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -13,6 +12,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use t_rustable_core::coords::PageView;
+use t_rustable_core::paths::Folders;
 use t_rustable_core::{Change, PageId, Result as CoreResult, Session};
 use t_rustable_engine::Engine;
 use t_rustable_plugin_host::SessionRef;

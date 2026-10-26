@@ -1,4 +1,5 @@
-//! App folders (ARCHITECTURE section 12) and bundled resources.
+//! App folders (ARCHITECTURE section 12) and bundled resources. The app and the CLI use
+//! the same folders.
 
 use std::path::{Path, PathBuf};
 
@@ -68,7 +69,7 @@ fn env_dir(name: &str) -> Option<PathBuf> {
 pub struct Resources {
     pub pdfium: PathBuf,
     pub fonts: PathBuf,
-    pub mods: PathBuf,
+    mods: PathBuf,
 }
 
 impl Resources {
@@ -94,16 +95,22 @@ impl Resources {
             Some(p) => PathBuf::from(p),
             None => pick("mods", repo.join("target/mods")),
         };
-        if !mods.is_dir() {
-            return Err(format!(
-                "The built-in mods are missing at {}. Run: cargo xtask build-mods",
-                mods.display()
-            ));
-        }
         Ok(Self {
             pdfium,
             fonts: pick("fonts", repo.join("fonts")),
             mods,
         })
+    }
+
+    /// The built-in mods folder. Only commands that load mods need it.
+    pub fn builtin_mods(&self) -> Result<&Path, String> {
+        if self.mods.is_dir() {
+            Ok(&self.mods)
+        } else {
+            Err(format!(
+                "The built-in mods are missing at {}. Run: cargo xtask build-mods",
+                self.mods.display()
+            ))
+        }
     }
 }
