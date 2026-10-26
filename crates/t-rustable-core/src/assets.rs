@@ -1,4 +1,4 @@
-//! Images and fonts that commands use, named by SHA-256 (ADR 0008).
+//! Images, fonts, and PDFs that commands use, named by SHA-256 (ADR 0008, ADR 0020).
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};

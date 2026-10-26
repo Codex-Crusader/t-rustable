@@ -16,6 +16,15 @@ Status: early development. The app does not work yet.
 6. External mods: `.tmod` packages and the mod manager.
 7. Command line and batch jobs.
 
+## Command line
+
+The `t-rustable` command shows facts about PDF files, merges them, exports pages as PNG or text, and runs mods on many files. See `docs/cli.md`.
+
+```
+t-rustable merge a.pdf b.pdf:2-4 -o both.pdf
+t-rustable run t-rustable.page-tools:rotate a.pdf --args '{"degrees": 90}' -o rotated.pdf
+```
+
 ## License
 
 T-Rustable is source-available and free for non-commercial use.

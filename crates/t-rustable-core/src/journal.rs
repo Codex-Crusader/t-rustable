@@ -4,7 +4,7 @@
 //! manifest.json      format version, app version, PDFium release, ID seed
 //! original.pdf       the original file, unchanged
 //! commands.jsonl     one entry per line
-//! assets/<sha256>    images and fonts that commands use
+//! assets/<sha256>    images, fonts, and PDFs that commands use
 //! ```
 
 use crate::assets::{AssetId, Assets};

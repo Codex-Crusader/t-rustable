@@ -36,3 +36,21 @@ The host calls these functions in an interactive mod. In Rust, implement the `To
 | `run(document, args)` | `args` and the result are JSON strings. In Rust, implement the `BatchJob` trait. |
 
 A batch job has no `ui` and no `files`. `to-display` and `from-display` return `no-display`.
+
+### Arguments
+
+`t-rustable run <mod-id>:<action>` puts the action into the arguments as `"action"`, so one batch job can have more than one action. For example, `t-rustable run my.mod:resize --args '{"width": 100}'` gives `{"width": 100, "action": "resize"}`. Without an action, the arguments are the JSON text from `--args`, or an empty string. `parse_args` in the SDK reads an empty string as JSON `null`.
+
+Return a JSON reply. The command line shows it in its `--json` report.
+
+### A full mod in a batch run
+
+A `full` mod imports `ui` and `files`, and its batch job can call them. In the command line:
+
+- `register-action`, `register-toolbar-item`, `register-panel`, `suggest-shortcut`, `register-overlay-image`, and `post-to-panel` return an error.
+- `set-overlay` and `clear-overlay` do nothing.
+- `confirm` returns false, and `files.pick` returns no file. The command line tells the user about each question.
+- `notify` messages go into the result of the file. `log` and `progress` show with `--verbose`.
+- `context` returns no open document and no selection.
+
+Settings start empty in the command line, and they are not kept.

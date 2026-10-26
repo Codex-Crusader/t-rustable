@@ -25,3 +25,4 @@ Each accepted ADR is a locked decision. It changes only through a new ADR that t
 | 0017 | New text and images read upright, and mods can measure text | Accepted |
 | 0018 | GUI threads, tiles, and the bridge to mods | Accepted |
 | 0019 | Mod install, mod sources, and developer mode | Accepted |
+| 0020 | Command line, batch runs, and merge | Accepted |

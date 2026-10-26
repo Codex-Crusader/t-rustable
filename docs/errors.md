@@ -1,6 +1,6 @@
 # Errors
 
-Status: format, the codes of the mod API 0.1, the codes of the core and the plugin host (Milestone 3), and the codes of the mod install (Milestone 5). More codes come with the features that use them.
+Status: format, the codes of the mod API 0.1, the codes of the core and the plugin host (Milestone 3), the codes of the mod install (Milestone 5), and the codes of the command line (Milestone 6). More codes come with the features that use them.
 
 ## Format
 
@@ -97,3 +97,19 @@ The install, `t-rustable mods pack`, and developer folders give these codes. The
 | `already-installed` | The same package (the same SHA-256) is installed. |
 | `not-installed` | The mod to remove is not installed. Built-in mods cannot be removed. |
 | `io-error` | A file operation failed during the install. The installed mods did not change. |
+
+## Codes of the command line
+
+The `t-rustable` command gives these codes, in addition to the codes above. The exit codes are in `docs/cli.md`.
+
+| Code | Exit code | Meaning |
+|---|---|---|
+| `invalid-argument` | 2 | An argument is not valid, for example a page range, the JSON arguments, or an output that is an input file. |
+| `invalid-recipe` | 2 | The recipe file does not parse, has no steps, or has an unknown format number. |
+| `not-found` | 2 or 1 | Exit code 2: the mod is not a built-in mod and is not installed. Exit code 1: a page range asks for a page that the file does not have. |
+| `no-batch-job` | 2 | The mod has no batch job. It works only in the app. |
+| `mod-disabled` | 2 | The user turned off the mod in the app. |
+| `encrypted-source` | 1 | A merge input other than the first has a password or restrictions. Merge does not copy its pages. |
+| `worker-stopped` | 1 | A worker process of `--jobs` stopped during the file. The other files continue on a new worker. |
+| `not-confirmed` | 2 | `mods install` needs `--yes` when there is no terminal to ask. |
+| `cancelled` | 1 | The user said no to `mods install`. Nothing was installed. |

@@ -38,7 +38,7 @@ Status: design after Milestone 1. The M1 spike results are in `docs/spikes/m1-re
 | `t-rustable-plugin-host` | Loads WASM components, checks imports against the manifest, applies limits, implements the WIT interfaces. Keeps the store of installed mods. | PolyForm NC |
 | `t-rustable-tmod` | Reads, checks, and writes `.tmod` packages (ADR 0019). Its `build` feature makes components for `mods pack`. No WASM engine. | PolyForm NC |
 | `t-rustable-app` | Tauri shell. Connects the Svelte UI to the core. | PolyForm NC |
-| `t-rustable-cli` | Batch front end. Uses the same core as the app. In Milestone 5 it has `mods new` and `mods pack`. | PolyForm NC |
+| `t-rustable-cli` | Command line front end: `info`, `merge`, `export`, `run`, `recipe`, and the `mods` commands (ADR 0020, `docs/cli.md`). Uses the same core and mod host as the app. | PolyForm NC |
 
 Dependency rules:
 
@@ -115,7 +115,7 @@ Rules:
 
 - Only the core defines command types. Mods cannot add command types (ADR 0004).
 - Each command type is one method of the `transaction` resource in the mod API. A new command type is a new method, so old mods keep working (ADR 0012).
-- A command contains all of its inputs. An image command refers to an asset by its SHA-256 hash. It never refers to a file path.
+- A command contains all of its inputs. A command that needs an image, a font, or another PDF refers to an asset by its SHA-256 hash. It never refers to a file path.
 - `apply` never reads the clock, a random source, or the file system.
 - Each command type has unit tests for all three handlers.
 
@@ -156,7 +156,7 @@ The crash journal uses the `.trex` format (ADR 0008):
 manifest.json      format version, app version, ID map seed, document info
 original.pdf       the original file, unchanged
 commands.jsonl     one transaction per line: label, source, commands
-assets/<sha256>    images and fonts that commands refer to
+assets/<sha256>    images, fonts, and PDFs that commands refer to
 ```
 
 - The core writes the journal to the app data folder (section 12) while the session is open. It is a folder with these files, not a zip, so that appends are cheap.
@@ -256,6 +256,8 @@ Mods get their settings through the `host` interface only. Settings have a size 
 `mods.json` holds the mods that the user turned off, developer mode, and the developer folders. The mod folder also has `.staging/` (a package that waits for the user's answer) and `.dev/` (packed builds of developer folders). The app deletes both at start.
 
 The app loads mods from three sources, in this order: built-in mods next to the program, developer folders (only in developer mode), and installed mods. A mod ID loads from the first source that has it (ADR 0019). The mod thread owns the host and this registry, so a load, an unload, and a mod call never run at the same time.
+
+The command line uses the same folders, from `t_rustable_core::paths` (ADR 0020). It reads `mods.json` but never writes it, because the app keeps that file in memory. `mods install` and `mods remove` change only the mods folder. The journals of the command line go to a temporary folder, not to the sessions folder. `T_RUSTABLE_HOME` puts all folders in one folder, for tests.
 
 ## 13. Offline guarantees
 
