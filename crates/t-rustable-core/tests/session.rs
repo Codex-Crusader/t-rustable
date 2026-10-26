@@ -5,7 +5,7 @@ use t_rustable_core::error::code;
 use t_rustable_core::fonts::Fonts;
 use t_rustable_core::{AssetId, ObjectId, OpenOptions, PageId, SaveOptions, Session};
 use t_rustable_engine::testing::{
-    blank_objects, blank_pdf, build_pdf, engine, outline_pdf, png, stream,
+    blank_objects, blank_pdf, build_pdf, encrypt, engine, outline_pdf, png, stream, text_pdf,
 };
 use t_rustable_engine::{Engine, Point, Priority, Rect, Request, Rgba, Stroke};
 
@@ -624,4 +624,127 @@ fn a_render_ticket_after_an_engine_restart() {
         .submit_render(page, 0.5, None, Priority::Background)
         .unwrap();
     assert_eq!(t.wait().unwrap(), want);
+}
+
+fn texts(s: &mut Session) -> Vec<String> {
+    s.page_ids()
+        .into_iter()
+        .map(|p| s.page_text(p).unwrap())
+        .collect()
+}
+
+fn insert_pdf(
+    s: &mut Session,
+    source: &[u8],
+    pages: Vec<usize>,
+    before: Option<PageId>,
+) -> (Vec<PageId>, Command) {
+    let asset = s.add_asset(Arc::from(source));
+    let ids: Vec<PageId> = pages.iter().map(|_| PageId::random()).collect();
+    let c = Command::InsertPdfPages {
+        ids: ids.clone(),
+        before,
+        source: asset,
+        pages,
+    };
+    (ids, c)
+}
+
+#[test]
+fn insert_pdf_pages_keeps_ids_undo_and_recovery() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = open(&e, dir.path(), text_pdf(&["Base A", "Base B"]));
+    let [a, b] = [s.page_ids()[0], s.page_ids()[1]];
+    let source = text_pdf(&["Src 1", "Src 2", "Src 3"]);
+    let (first, c1) = insert_pdf(&mut s, &source, vec![2, 0], Some(b));
+    let (second, c2) = insert_pdf(&mut s, &source, vec![1], None);
+    commit(&mut s, vec![c1, c2]).unwrap();
+    assert_eq!(
+        texts(&mut s),
+        ["Base A", "Src 3", "Src 1", "Base B", "Src 2"]
+    );
+    assert_eq!(s.page_ids(), [a, first[0], first[1], b, second[0]]);
+
+    // The new pages work with other commands after the commit.
+    let (rect_id, rect_cmd) = add_rect(first[1], rect(10.0, 10.0, 50.0, 50.0));
+    commit(
+        &mut s,
+        vec![
+            Command::RotatePage {
+                page: first[0],
+                degrees: 90,
+            },
+            rect_cmd,
+            Command::DeletePage { page: a },
+        ],
+    )
+    .unwrap();
+    assert_eq!(s.page(first[0]).unwrap().info.quarter_turns, 1);
+    assert!(s.objects(first[1]).unwrap().iter().any(|o| o.id == rect_id));
+
+    // Undo, redo, and recovery from the journal without the source file.
+    let want = snapshot(&mut s);
+    s.undo().unwrap();
+    assert_eq!(
+        texts(&mut s),
+        ["Base A", "Src 3", "Src 1", "Base B", "Src 2"]
+    );
+    s.redo().unwrap();
+    assert_eq!(snapshot(&mut s), want);
+    drop(s);
+    let list = t_rustable_core::journal::list_unclosed(dir.path()).unwrap();
+    let mut r = Session::recover(&e, &list[0].dir, None).unwrap();
+    assert_eq!(snapshot(&mut r), want);
+
+    // Save and open again.
+    let out = dir.path().join("merged.pdf");
+    r.save(&out, SaveOptions::default()).unwrap();
+    r.close().unwrap();
+    let mut again = open(&e, dir.path(), std::fs::read(&out).unwrap());
+    assert_eq!(texts(&mut again), ["Src 3", "Src 1", "Base B", "Src 2"]);
+}
+
+#[test]
+fn insert_pdf_pages_refuses_bad_input() {
+    let e = engine();
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = open(&e, dir.path(), text_pdf(&["Base"]));
+    let base = s.page_ids()[0];
+    let source = text_pdf(&["Src"]);
+
+    // Checked when the command is added.
+    let (_, mut c) = insert_pdf(&mut s, &source, vec![0], None);
+    if let Command::InsertPdfPages { ids, .. } = &mut c {
+        ids[0] = base;
+    }
+    let mut tx = s.begin("test", "user");
+    assert_eq!(s.add(&mut tx, c).unwrap_err().code, code::INVALID_ARGUMENT);
+    let (_, c) = insert_pdf(&mut s, &source, vec![], None);
+    assert_eq!(s.add(&mut tx, c).unwrap_err().code, code::INVALID_ARGUMENT);
+
+    // A new page cannot change in the same transaction.
+    let (ids, c) = insert_pdf(&mut s, &source, vec![0], None);
+    s.add(&mut tx, c).unwrap();
+    let r = s.add(
+        &mut tx,
+        Command::RotatePage {
+            page: ids[0],
+            degrees: 90,
+        },
+    );
+    assert_eq!(r.unwrap_err().code, code::INVALID_ARGUMENT);
+    drop(tx);
+
+    // Checked by the engine at commit. Nothing changes.
+    let (_, c) = insert_pdf(&mut s, &source, vec![3], None);
+    assert_eq!(
+        commit(&mut s, vec![c]).unwrap_err().code,
+        code::COMMAND_FAILED
+    );
+    let (_, c) = insert_pdf(&mut s, &encrypt(&source, ""), vec![0], None);
+    let err = commit(&mut s, vec![c]).unwrap_err();
+    assert_eq!(err.code, code::COMMAND_FAILED);
+    assert!(err.message.contains("encrypted"), "{err}");
+    assert_eq!(texts(&mut s), ["Base"]);
 }

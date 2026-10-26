@@ -174,8 +174,11 @@ fn unexpected(r: Response) -> CoreError {
 
 impl PageReader for LiveReader<'_> {
     fn read(&mut self, page: PageId) -> Result<(u8, PageContent)> {
+        // A page that an earlier command of the open transaction copied from another PDF.
         let index = self.live.page_index(page).ok_or_else(|| {
-            CoreError::internal(format!("page {page} is not in the live document"))
+            CoreError::invalid(format!(
+                "Page {page} is new in this transaction. Commit the transaction, then change the page."
+            ))
         })?;
         if let (Some(r), Some(c)) = (
             self.live.pages[index].rotation,

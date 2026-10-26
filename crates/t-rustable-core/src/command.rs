@@ -15,6 +15,7 @@ use t_rustable_engine::{EditOp, ImageData, PathSegment, Point, Rect, Rgba, Strok
 pub const MAX_COORD: f64 = 14_400.0;
 pub const MAX_TEXT_CHARS: usize = 10_000;
 pub const MAX_FONT_SIZE: f64 = 1_000.0;
+pub const MAX_INSERTED_PAGES: usize = 10_000;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -46,6 +47,15 @@ pub enum Command {
         before: Option<PageId>,
         width: f64,
         height: f64,
+    },
+    /// Copies pages of another PDF before `before`. None puts them at the end. `source`
+    /// is the PDF file as an asset. `pages` are its page indices, from 0. Page `pages[k]`
+    /// gets the ID `ids[k]`.
+    InsertPdfPages {
+        ids: Vec<PageId>,
+        before: Option<PageId>,
+        source: AssetId,
+        pages: Vec<usize>,
     },
     AddText {
         id: ObjectId,
@@ -360,6 +370,56 @@ impl Command {
                     None,
                 )]
             }
+            Command::InsertPdfPages {
+                ids,
+                before,
+                source,
+                pages,
+            } => {
+                if ids.is_empty() || ids.len() > MAX_INSERTED_PAGES {
+                    return Err(CoreError::invalid(format!(
+                        "Insert 1 to {MAX_INSERTED_PAGES} pages."
+                    )));
+                }
+                if ids.len() != pages.len() {
+                    return Err(CoreError::invalid(
+                        "Each inserted page needs exactly one page ID.",
+                    ));
+                }
+                for (k, id) in ids.iter().enumerate() {
+                    if state.page_index(*id).is_some() || ids[..k].contains(id) {
+                        return Err(CoreError::invalid(format!(
+                            "The page ID {id} is already in use."
+                        )));
+                    }
+                }
+                let data = assets
+                    .get(*source)
+                    .ok_or_else(|| CoreError::not_found(format!("PDF asset {source}")))?;
+                let at = match before {
+                    Some(b) => page_index(state, *b)?,
+                    None => state.pages.len(),
+                };
+                // The core reads the new pages from the engine after the commit.
+                for (k, id) in ids.iter().enumerate() {
+                    state.pages.insert(
+                        at + k,
+                        PageEntry {
+                            id: *id,
+                            rotation: None,
+                            content: None,
+                        },
+                    );
+                }
+                vec![(
+                    EditOp::ImportPages {
+                        source: data.clone(),
+                        pages: pages.clone(),
+                        at,
+                    },
+                    None,
+                )]
+            }
             Command::AddText {
                 id,
                 page,
@@ -500,6 +560,14 @@ impl Command {
             Command::InsertBlankPage { before: None, .. } => {
                 "Insert a blank page at the end".to_string()
             }
+            Command::InsertPdfPages {
+                ids,
+                before: Some(b),
+                ..
+            } => format!("Insert {} pages before page {}", ids.len(), n(b)),
+            Command::InsertPdfPages {
+                ids, before: None, ..
+            } => format!("Insert {} pages at the end", ids.len()),
             Command::AddText { page, text, .. } => {
                 let short: String = text.chars().take(30).collect();
                 let more = if text.chars().count() > 30 { "..." } else { "" };
@@ -524,6 +592,7 @@ impl Command {
         match self {
             Command::DeletePage { page } | Command::MovePage { page, .. } => (Some(*page), true),
             Command::InsertBlankPage { id, .. } => (Some(*id), true),
+            Command::InsertPdfPages { ids, .. } => (ids.first().copied(), true),
             Command::RotatePage { page, .. }
             | Command::AddText { page, .. }
             | Command::AddImage { page, .. }
@@ -537,6 +606,7 @@ impl Command {
         match self {
             Command::AddText { font, .. } => Some(*font),
             Command::AddImage { image, .. } => Some(*image),
+            Command::InsertPdfPages { source, .. } => Some(*source),
             _ => None,
         }
     }
@@ -739,6 +809,52 @@ mod tests {
         );
         assert_eq!(t.fake.reads, 1, "the page is read once");
         assert_eq!(t.err(&rot(45)).code, code::INVALID_ARGUMENT);
+    }
+
+    #[test]
+    fn insert_pdf_pages() {
+        let mut t = setup(2);
+        let p1 = t.page(1);
+        let source = t.assets.add(Arc::from(&b"%PDF-1.7 source"[..]));
+        let c = Command::InsertPdfPages {
+            ids: vec![PageId(90), PageId(91)],
+            before: Some(p1),
+            source,
+            pages: vec![4, 0],
+        };
+        assert_eq!(c.describe(&t.state), "Insert 2 pages before page 2");
+        assert_eq!(c.assets(), Some(source));
+        assert_eq!(
+            ops(t.step(&c).unwrap()),
+            [EditOp::ImportPages {
+                source: t.assets.get(source).unwrap().clone(),
+                pages: vec![4, 0],
+                at: 1,
+            }]
+        );
+        assert_eq!(t.state.page_index(PageId(90)), Some(1));
+        assert_eq!(t.state.page_index(PageId(91)), Some(2));
+        assert_eq!(t.state.pages[1].content, None, "read after the commit");
+        assert_eq!(t.err(&c).code, code::INVALID_ARGUMENT, "the IDs are in use");
+        let bad = |ids: Vec<PageId>, pages: Vec<usize>, source| Command::InsertPdfPages {
+            ids,
+            before: None,
+            source,
+            pages,
+        };
+        let twice = bad(vec![PageId(92), PageId(92)], vec![0, 1], source);
+        assert_eq!(t.err(&twice).code, code::INVALID_ARGUMENT);
+        let count = bad(vec![PageId(93)], vec![0, 1], source);
+        assert_eq!(t.err(&count).code, code::INVALID_ARGUMENT);
+        let none = bad(vec![], vec![], source);
+        assert_eq!(t.err(&none).code, code::INVALID_ARGUMENT);
+        let missing = bad(vec![PageId(94)], vec![0], AssetId([7; 32]));
+        assert_eq!(t.err(&missing).code, code::NOT_FOUND);
+        let end = bad(vec![PageId(95)], vec![0], source);
+        assert!(matches!(
+            &ops(t.step(&end).unwrap())[..],
+            [EditOp::ImportPages { at: 4, .. }]
+        ));
     }
 
     #[test]
