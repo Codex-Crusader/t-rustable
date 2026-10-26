@@ -3818,8 +3818,11 @@ name = "t-rustable-cli"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "serde",
  "serde_json",
  "t-rustable-core",
+ "t-rustable-engine",
+ "t-rustable-plugin-host",
  "t-rustable-sdk",
  "t-rustable-tmod",
  "tempfile",

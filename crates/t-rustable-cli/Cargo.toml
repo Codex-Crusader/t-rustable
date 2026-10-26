@@ -18,10 +18,14 @@ workspace = true
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 t-rustable-core.workspace = true
+t-rustable-engine.workspace = true
+t-rustable-plugin-host.workspace = true
 t-rustable-sdk.workspace = true
 t-rustable-tmod = { workspace = true, features = ["build"] }
+tempfile = "3"
 
 [dev-dependencies]
-tempfile = "3"
+t-rustable-engine = { workspace = true, features = ["test-hooks"] }

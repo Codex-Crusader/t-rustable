@@ -14,7 +14,7 @@ pub mod session;
 pub use assets::{AssetId, Assets};
 pub use error::{CoreError, Result};
 pub use ids::{ObjectId, PageId, Seed};
-pub use session::{Change, OpenOptions, RenderTicket, SaveOptions, Session, Transaction};
+pub use session::{Change, OpenOptions, RenderTicket, SaveOptions, Session, Transaction, probe};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

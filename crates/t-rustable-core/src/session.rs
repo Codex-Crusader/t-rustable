@@ -15,9 +15,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use t_rustable_engine::{
-    AnnotationInfo, Applied, Bitmap, Clip, DocKey, EditOp, Engine, EngineError, FormField,
-    Metadata, ObjectInfo, OutlineItem, PageInfo, Priority, Query, Request, Response, SearchOptions,
-    TextRun, Ticket,
+    AnnotationInfo, Applied, Bitmap, Clip, DocKey, DocSummary, EditOp, Engine, EngineError,
+    FormField, Metadata, ObjectInfo, OutlineItem, PageInfo, Priority, Query, Request, Response,
+    SearchOptions, TextRun, Ticket,
 };
 
 /// A checkpoint every K transactions (ARCHITECTURE section 7).
@@ -246,7 +246,24 @@ pub struct Session {
     next_tx: u64,
     checkpoints: Vec<Checkpoint>,
     signature_count: usize,
+    encrypted: bool,
     journal: Journal,
+}
+
+/// Opens a document only to read its summary, then closes it. No journal.
+pub fn probe(engine: &Engine, bytes: Arc<[u8]>, password: Option<&str>) -> Result<DocSummary> {
+    let key = NEXT_KEY.fetch_add(1, Ordering::Relaxed);
+    let req = Request::Open {
+        doc: key,
+        bytes,
+        password: password.map(String::from),
+    };
+    let summary = match ask(engine, Priority::Interactive, req)? {
+        Response::Opened(s) => s,
+        r => return Err(unexpected(r)),
+    };
+    let _ = engine.call(Priority::Interactive, Request::Close { doc: key });
+    Ok(summary)
 }
 
 impl Session {
@@ -376,6 +393,7 @@ impl Session {
             next_tx: 1,
             checkpoints: Vec::new(),
             signature_count: summary.signature_count,
+            encrypted: summary.encrypted,
             journal,
         })
     }
@@ -394,6 +412,11 @@ impl Session {
 
     pub fn signature_count(&self) -> usize {
         self.signature_count
+    }
+
+    /// The file has a user or owner password. A save keeps the encryption.
+    pub fn encrypted(&self) -> bool {
+        self.encrypted
     }
 
     pub fn history(&self) -> &[Committed] {
