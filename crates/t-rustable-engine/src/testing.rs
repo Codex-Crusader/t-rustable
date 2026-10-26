@@ -110,6 +110,49 @@ pub fn blank_objects(sizes: &[(f64, f64)], catalog: &str) -> Vec<String> {
     objects
 }
 
+/// Pages of 200 by 200 points. Page `i` shows `texts[i]` in Helvetica.
+pub fn text_pdf(texts: &[&str]) -> Vec<u8> {
+    let n = texts.len();
+    let font = 3 + 2 * n;
+    let kids: Vec<String> = (0..n).map(|i| format!("{} 0 R", 3 + 2 * i)).collect();
+    let mut objects = vec![
+        "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+        format!("<< /Type /Pages /Kids [{}] /Count {n} >>", kids.join(" ")),
+    ];
+    for (i, text) in texts.iter().enumerate() {
+        objects.push(format!(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200]              /Resources << /Font << /F1 {font} 0 R >> >> /Contents {} 0 R >>",
+            4 + 2 * i
+        ));
+        objects.push(stream(&format!("BT /F1 18 Tf 20 100 Td ({text}) Tj ET")));
+    }
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
+    build_pdf(&objects)
+}
+
+/// `pdf` with AES-256 encryption and no permissions. With an empty `user_password`, the
+/// file opens without a password, and only the owner password removes the restrictions.
+pub fn encrypt(pdf: &[u8], user_password: &str) -> Vec<u8> {
+    use qpdf::{EncryptionParams, EncryptionParamsR6, PrintPermission, QPdf};
+    QPdf::read_from_memory(pdf)
+        .unwrap()
+        .writer()
+        .encryption_params(EncryptionParams::R6(EncryptionParamsR6 {
+            user_password: user_password.into(),
+            owner_password: "owner".into(),
+            allow_accessibility: true,
+            allow_extract: false,
+            allow_assemble: false,
+            allow_annotate_and_form: false,
+            allow_form_filling: false,
+            allow_modify_other: false,
+            allow_print: PrintPermission::None,
+            encrypt_metadata: true,
+        }))
+        .write_to_memory()
+        .unwrap()
+}
+
 /// Three blank pages and an outline with two levels:
 ///
 /// - "Chapter 1" goes to page 1. Its children are "Section 1.1", which goes to page 2

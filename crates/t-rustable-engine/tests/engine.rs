@@ -915,3 +915,76 @@ fn outline_stops_at_cycles_and_limits() {
     open(&e, 3, build_pdf(&objects));
     assert_eq!(outline(&e, 3).len(), 10_000);
 }
+
+fn summary(e: &Engine, doc: DocKey) -> DocSummary {
+    match query(e, doc, Query::Summary) {
+        Response::Summary(s) => s,
+        r => panic!("{r:?}"),
+    }
+}
+
+fn import(source: &[u8], pages: Vec<usize>, at: usize) -> EditOp {
+    EditOp::ImportPages {
+        source: Arc::from(source),
+        pages,
+        at,
+    }
+}
+
+#[test]
+fn import_pages_copies_pages_that_outlive_the_source() {
+    let e = engine();
+    open(&e, 1, text_pdf(&["Base A", "Base B"]));
+    let source = text_pdf(&["Src 1", "Src 2", "Src 3"]);
+    apply(&e, 1, vec![import(&source, vec![2, 0], 1)]).unwrap();
+    apply(&e, 1, vec![import(&source, vec![1], 0)]).unwrap();
+    apply(&e, 1, vec![import(&source, vec![1], 5)]).unwrap();
+    drop(source);
+    let texts: Vec<String> = (0..6).map(|p| page_text(&e, 1, p)).collect();
+    assert_eq!(
+        texts,
+        ["Src 2", "Base A", "Src 3", "Src 1", "Base B", "Src 2"]
+    );
+    // The copied pages render and survive save and reload.
+    let before = render(&e, 1, 2, 1.0);
+    let bytes = post::post_process(&save(&e, 1)).unwrap();
+    open(&e, 2, bytes);
+    assert_eq!(summary(&e, 2).page_count, 6);
+    assert_eq!(page_text(&e, 2, 3), "Src 1");
+    assert_eq!(render(&e, 2, 2, 1.0), before);
+}
+
+#[test]
+fn import_pages_refuses_bad_sources_and_indices() {
+    let e = engine();
+    open(&e, 1, text_pdf(&["Base"]));
+    let source = text_pdf(&["Src"]);
+    let failed = |r: Result<Vec<Applied>, EngineError>| match r {
+        Err(EngineError::OpFailed { error, .. }) => *error,
+        r => panic!("{r:?}"),
+    };
+    assert!(matches!(
+        failed(apply(&e, 1, vec![import(&source, vec![1], 0)])),
+        EngineError::InvalidArgument(_)
+    ));
+    assert!(matches!(
+        failed(apply(&e, 1, vec![import(&source, vec![0], 2)])),
+        EngineError::InvalidArgument(_)
+    ));
+    assert!(matches!(
+        failed(apply(&e, 1, vec![import(b"not a pdf", vec![0], 0)])),
+        EngineError::BadFile(_)
+    ));
+    // Owner password only: the file opens, but a copy would drop the restrictions.
+    for user in ["", "secret"] {
+        let locked = encrypt(&source, user);
+        match failed(apply(&e, 1, vec![import(&locked, vec![0], 0)])) {
+            EngineError::InvalidArgument(m) => assert!(m.contains("encrypted"), "{m}"),
+            r => panic!("{r:?}"),
+        }
+    }
+    assert_eq!(summary(&e, 1).page_count, 1);
+    assert!(!summary(&e, 1).encrypted);
+    open(&e, 2, encrypt(&source, ""));
+    assert!(summary(&e, 2).encrypted);
+}

@@ -21,6 +21,7 @@ fn summary(d: &Document) -> DocSummary {
         page_count: d.page_count(),
         signature_count: d.signature_count(),
         metadata: d.metadata(),
+        encrypted: d.encrypted(),
     }
 }
 
@@ -311,6 +312,7 @@ fn apply_structure(d: &mut Document, op: &EditOp) -> Result<Applied, EngineError
             positive("page height", *height, MAX_PAGE_SIZE)?;
             d.insert_blank_page(*at, *width, *height)
         }
+        EditOp::ImportPages { source, pages, at } => d.import_pages(source.clone(), pages, *at),
         EditOp::RemoveAnnotation { page, index } => d.page(*page)?.remove_annotation(*index),
         _ => unreachable!("content ops go through edit_page"),
     }

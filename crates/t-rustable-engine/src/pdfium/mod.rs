@@ -158,6 +158,11 @@ impl Document {
         unsafe { (self.f().get_signature_count)(self.h).max(0) as usize }
     }
 
+    pub fn encrypted(&self) -> bool {
+        // SAFETY: `h` is an open document. -1 means no security handler.
+        unsafe { (self.f().get_security_handler_revision)(self.h) != -1 }
+    }
+
     fn meta(&self, tag: &str) -> Option<String> {
         let tag = CString::new(tag).unwrap();
         // SAFETY: the buffer has `len` bytes.
@@ -249,6 +254,53 @@ impl Document {
             (self.f().close_page)(page);
         }
         Ok(())
+    }
+
+    /// Copies pages of the PDF in `source` to index `at`. PDFium copies all objects that
+    /// the pages use, so the source closes at once. Encrypted sources are refused, because
+    /// a copy would drop their restrictions.
+    pub fn import_pages(
+        &mut self,
+        source: Arc<[u8]>,
+        pages: &[usize],
+        at: usize,
+    ) -> Result<(), EngineError> {
+        if at > self.page_count() {
+            return Err(EngineError::InvalidArgument(format!(
+                "page index {at} is out of range"
+            )));
+        }
+        if pages.is_empty() {
+            return Err(EngineError::InvalidArgument("no pages to copy".into()));
+        }
+        let src = match Document::open(&self.p, source, None) {
+            Err(EngineError::Password) => {
+                return Err(EngineError::InvalidArgument(
+                    "the source PDF is encrypted".into(),
+                ));
+            }
+            r => r?,
+        };
+        if src.encrypted() {
+            return Err(EngineError::InvalidArgument(
+                "the source PDF is encrypted".into(),
+            ));
+        }
+        for &p in pages {
+            src.check_page(p)?;
+        }
+        let indices: Vec<c_int> = pages.iter().map(|&p| p as c_int).collect();
+        // SAFETY: both documents are open, and all indices are in range.
+        let ok = unsafe {
+            (self.f().import_pages_by_index)(
+                self.h,
+                src.h,
+                indices.as_ptr(),
+                indices.len() as c_ulong,
+                at as c_int,
+            )
+        };
+        check(ok, "import pages")
     }
 
     /// Loads a TrueType font as a CID font, once per document and font file.

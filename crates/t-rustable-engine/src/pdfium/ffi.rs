@@ -91,6 +91,8 @@ pdfium_fns! {
     get_meta_text = "FPDF_GetMetaText": fn(Handle, *const c_char, *mut c_void, c_ulong) -> c_ulong;
     get_page_label = "FPDF_GetPageLabel": fn(Handle, c_int, *mut c_void, c_ulong) -> c_ulong;
     get_signature_count = "FPDF_GetSignatureCount": fn(Handle) -> c_int;
+    get_security_handler_revision = "FPDF_GetSecurityHandlerRevision": fn(Handle) -> c_int;
+    import_pages_by_index = "FPDF_ImportPagesByIndex": fn(Handle, Handle, *const c_int, c_ulong, c_int) -> Bool;
 
     load_page = "FPDF_LoadPage": fn(Handle, c_int) -> Handle;
     close_page = "FPDF_ClosePage": fn(Handle);

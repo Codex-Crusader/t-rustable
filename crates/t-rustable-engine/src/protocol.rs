@@ -135,6 +135,12 @@ pub enum EditOp {
         page: usize,
         index: usize,
     },
+    /// Copies pages of another PDF to index `at`. The source must not be encrypted.
+    ImportPages {
+        source: Arc<[u8]>,
+        pages: Vec<usize>,
+        at: usize,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -233,6 +239,9 @@ pub struct DocSummary {
     pub page_count: usize,
     pub signature_count: usize,
     pub metadata: Metadata,
+    /// The file has a security handler (a user or owner password).
+    #[serde(default)]
+    pub encrypted: bool,
 }
 
 /// One bookmark of the document outline.
