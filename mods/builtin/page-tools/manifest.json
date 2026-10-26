@@ -1,7 +1,7 @@
 {
   "id": "t-rustable.page-tools",
   "name": "Page tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "apiVersion": "0.1",
   "author": "T-Rustable",
   "description": "Rotates, deletes, moves, and inserts pages.",

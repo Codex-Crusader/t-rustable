@@ -185,6 +185,14 @@ fn page_tools_run_as_a_batch_job() {
     assert_eq!(&pages(&doc)[..3], [b, a, c]);
     run(&mut host, r#"{"action": "delete", "pages": [4]}"#).unwrap();
     assert_eq!(pages(&doc), [b, a, c]);
+    // Without pages, rotate uses all pages. Delete needs pages.
+    run(&mut host, r#"{"action": "rotate", "degrees": 90}"#).unwrap();
+    assert_eq!([a, b, c].map(|p| quarter_turns(&doc, p)), [3, 1, 3]);
+    assert_eq!(
+        run(&mut host, r#"{"action": "delete"}"#).unwrap_err().code,
+        "invalid-argument"
+    );
+    assert_eq!(pages(&doc), [b, a, c]);
 
     assert_eq!(
         run(&mut host, r#"{"action": "delete", "pages": [9]}"#)

@@ -2,7 +2,8 @@
 //!
 //! In the GUI, the actions use the selected pages, else the active page.
 //! In the CLI, the batch job takes JSON with 1-based page numbers, for example
-//! `{"action": "rotate", "pages": [1, 3], "degrees": 90}`.
+//! `{"action": "rotate", "pages": [1, 3], "degrees": 90}`. Only `rotate` uses all pages
+//! when `pages` is missing.
 
 use serde::{Deserialize, Serialize};
 use t_rustable_sdk::document::Doc;
@@ -164,11 +165,23 @@ impl Tool for PageTools {
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "kebab-case", deny_unknown_fields)]
 enum BatchArgs {
-    Rotate { pages: Vec<u32>, degrees: i32 },
-    Delete { pages: Vec<u32> },
-    MoveUp { pages: Vec<u32> },
-    MoveDown { pages: Vec<u32> },
-    InsertBlankAfter { page: u32 },
+    Rotate {
+        #[serde(default)]
+        pages: Option<Vec<u32>>,
+        degrees: i32,
+    },
+    Delete {
+        pages: Vec<u32>,
+    },
+    MoveUp {
+        pages: Vec<u32>,
+    },
+    MoveDown {
+        pages: Vec<u32>,
+    },
+    InsertBlankAfter {
+        page: u32,
+    },
 }
 
 #[derive(Serialize)]
@@ -201,7 +214,10 @@ impl BatchJob for PageTools {
         let args: BatchArgs = parse_args(&args)?;
         let order = document.page_ids();
         let (op, numbers) = match args {
-            BatchArgs::Rotate { pages, degrees } => (Op::Rotate(degrees), pages),
+            BatchArgs::Rotate { pages, degrees } => {
+                let all = || (1..=order.len() as u32).collect();
+                (Op::Rotate(degrees), pages.unwrap_or_else(all))
+            }
             BatchArgs::Delete { pages } => (Op::Delete, pages),
             BatchArgs::MoveUp { pages } => (Op::MoveUp, pages),
             BatchArgs::MoveDown { pages } => (Op::MoveDown, pages),
