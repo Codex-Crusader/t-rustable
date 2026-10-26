@@ -988,3 +988,27 @@ fn import_pages_refuses_bad_sources_and_indices() {
     open(&e, 2, encrypt(&source, ""));
     assert!(summary(&e, 2).encrypted);
 }
+
+#[test]
+fn import_pages_copies_annotations_but_not_the_form() {
+    let e = engine();
+    open(&e, 1, text_pdf(&["Base"]));
+    apply(&e, 1, vec![import(&annotated_pdf(), vec![0], 1)]).unwrap();
+    let annotations = match query(&e, 1, Query::Annotations { page: 1 }) {
+        Response::Annotations(a) => a.len(),
+        r => panic!("{r:?}"),
+    };
+    let fields = match query(&e, 1, Query::FormFields) {
+        Response::FormFields(f) => f.len(),
+        r => panic!("{r:?}"),
+    };
+    // PDFium finds the widget on the page, but the copy adds no field to the form of
+    // the base document. Other readers can show it as a plain annotation (ADR 0020).
+    assert_eq!((annotations, fields), (2, 1));
+    let saved = post::post_process(&save(&e, 1)).unwrap();
+    let root = qpdf::QPdf::read_from_memory(&saved)
+        .unwrap()
+        .get_root()
+        .unwrap();
+    assert!(root.get("/AcroForm").is_none());
+}
