@@ -260,17 +260,27 @@ fn export(
         Format::Png => {
             let digits = ids.len().to_string().len();
             for i in indices {
-                let bitmap = s
+                let page = s
                     .render(ids[i], f64::from(dpi) / 72.0, None, Priority::Normal)
-                    .map_err(|e| {
-                        Problem::from(e).hint(format!("Page {} did not render.", i + 1))
-                    })?;
-                if let Some(prefix) = &job.output {
-                    let mut name = prefix.as_os_str().to_owned();
-                    name.push(format!("-{:0digits$}.png", i + 1));
-                    let path = PathBuf::from(name);
-                    write_file(&path, &bitmap.to_png())?;
-                    outputs.push(path);
+                    .map_err(|e| Problem::from(e).hint(format!("Page {} did not render.", i + 1)))
+                    .and_then(|bitmap| {
+                        let Some(prefix) = &job.output else {
+                            return Ok(None);
+                        };
+                        let mut name = prefix.as_os_str().to_owned();
+                        name.push(format!("-{:0digits$}.png", i + 1));
+                        let path = PathBuf::from(name);
+                        write_file(&path, &bitmap.to_png()).map(|()| Some(path))
+                    });
+                match page {
+                    Ok(path) => outputs.extend(path),
+                    Err(e) => {
+                        // A failed file leaves no output.
+                        for p in &outputs {
+                            let _ = std::fs::remove_file(p);
+                        }
+                        return Err(e);
+                    }
                 }
             }
         }

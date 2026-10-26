@@ -223,6 +223,25 @@ fn export_writes_png_and_text() {
         out.to_str().unwrap(),
     ]);
     assert_eq!(code, 2);
+    // At 600 pixels per inch, page 2 is over the pixel limit of the engine. Page 1 was
+    // written first, and the failed file leaves no output.
+    let big = h.file(
+        "big.pdf",
+        &blank_pdf(&[(100.0, 100.0), (14_000.0, 14_000.0)]),
+    );
+    let big_out = h.path("big");
+    let (code, r) = h.json(&[
+        "export",
+        &big,
+        "--format",
+        "png",
+        "--dpi",
+        "600",
+        "--out-dir",
+        big_out.to_str().unwrap(),
+    ]);
+    assert_eq!(code, 1, "{r}");
+    assert_eq!(std::fs::read_dir(&big_out).unwrap().count(), 0);
     let (code, r) = h.json(&["export", &a, "--format", "png", "--pages", "5", "--dry-run"]);
     assert_eq!(
         (code, &r["files"][0]["error"]["code"]),
