@@ -124,7 +124,7 @@ enum Top {
         #[command(flatten)]
         jobs: Jobs,
     },
-    /// Install, remove, check, make, and pack mods.
+    /// List, install, remove, check, make, and pack mods.
     #[command(subcommand)]
     Mods(Mods),
     /// One worker process of --jobs. Not for direct use.
@@ -134,6 +134,22 @@ enum Top {
 
 #[derive(Subcommand)]
 enum Mods {
+    /// Lists the built-in and the installed mods.
+    List,
+    /// Checks a .tmod package, shows its permissions, and installs it.
+    Install {
+        package: PathBuf,
+        /// Install without a question. Read the permissions first.
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Removes an installed mod.
+    Remove { id: String },
+    /// Does the install checks on a .tmod package, or on a mod by its ID.
+    Verify {
+        #[arg(value_name = "PACKAGE_OR_ID")]
+        target: String,
+    },
     /// Writes a new mod folder from the template.
     New {
         /// The name that users see, for example "My stamp".
@@ -348,6 +364,10 @@ fn main() -> ExitCode {
             output,
             module,
         }) => pack(folder, output, module),
+        Top::Mods(Mods::List) => return mods::list(cli.json),
+        Top::Mods(Mods::Install { package, yes }) => return mods::install(&package, yes, cli.json),
+        Top::Mods(Mods::Remove { id }) => return mods::remove(&id, cli.json),
+        Top::Mods(Mods::Verify { target }) => return mods::verify(&target, cli.json),
         command => return document_command(command, cli.json, cli.verbose),
     };
     match result {
