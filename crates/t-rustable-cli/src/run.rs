@@ -77,6 +77,8 @@ pub struct Job {
 pub struct Env {
     pub resources: Resources,
     pub engine: Engine,
+    // Before `sessions`, so the lock closes before the folder is removed.
+    _lock: std::fs::File,
     sessions: tempfile::TempDir,
     password: Option<String>,
 }
@@ -86,13 +88,18 @@ impl Env {
         let resources = Resources::find().map_err(|e| Problem::new("internal", e))?;
         let engine = Engine::start(&resources.pdfium)
             .map_err(|e| Problem::new("internal", format!("PDFium did not start: {e}")))?;
+        remove_stale_sessions();
+        let no_folder = |e| Problem::new("io-error", format!("No temporary folder: {e}"));
         let sessions = tempfile::Builder::new()
-            .prefix("t-rustable-cli-")
+            .prefix(SESSIONS_PREFIX)
             .tempdir()
-            .map_err(|e| Problem::new("io-error", format!("No temporary folder: {e}")))?;
+            .map_err(no_folder)?;
+        let lock = std::fs::File::create(sessions.path().join(LOCK)).map_err(no_folder)?;
+        lock.lock().map_err(no_folder)?;
         Ok(Self {
             resources,
             engine,
+            _lock: lock,
             sessions,
             password: std::env::var("T_RUSTABLE_PASSWORD").ok(),
         })
@@ -111,6 +118,41 @@ impl Env {
             source_name: input.file_name().map(|n| n.to_string_lossy().into_owned()),
         };
         Ok(Session::open(&self.engine, self.read(input)?, options)?)
+    }
+}
+
+const SESSIONS_PREFIX: &str = "t-rustable-cli-";
+const LOCK: &str = "lock";
+
+/// Removes the journal folders of runs that stopped without cleanup, for example a killed
+/// run. They hold copies of documents. A run holds the lock on its folder while it works.
+fn remove_stale_sessions() {
+    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(SESSIONS_PREFIX)
+        {
+            continue;
+        }
+        let dir = entry.path();
+        let stale = match std::fs::File::open(dir.join(LOCK)) {
+            Ok(f) => f.try_lock().is_ok(),
+            // No lock file yet: a run that starts now, or an older version.
+            Err(_) => entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .is_ok_and(|t| t.elapsed().is_ok_and(|age| age.as_secs() > 60)),
+        };
+        if stale && std::fs::remove_dir_all(&dir).is_ok() {
+            log::info!(
+                "Removed the journal folder of a stopped run: {}",
+                dir.display()
+            );
+        }
     }
 }
 

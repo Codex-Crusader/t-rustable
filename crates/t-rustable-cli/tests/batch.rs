@@ -130,6 +130,29 @@ fn info_reports_each_file() {
 }
 
 #[test]
+fn a_run_removes_only_the_journals_of_stopped_runs() {
+    let h = Home::new();
+    let a = h.file("a.pdf", &text_pdf(&["A"]));
+    let tmp = h.path("tmp");
+    let tmp_env = tmp.to_str().unwrap();
+    let journal = |name: &str| {
+        let dir = tmp.join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("original.pdf"), b"%PDF").unwrap();
+        std::fs::File::create(dir.join("lock")).unwrap()
+    };
+    // A killed run leaves its folder, and nothing holds the lock.
+    drop(journal("t-rustable-cli-stopped"));
+    let busy = journal("t-rustable-cli-busy");
+    busy.lock().unwrap();
+    let env = [("TMP", tmp_env), ("TEMP", tmp_env), ("TMPDIR", tmp_env)];
+    let out = h.run_with(&["info", &a], &env);
+    assert!(out.status.success(), "{}", text(&out));
+    assert!(!tmp.join("t-rustable-cli-stopped").exists());
+    assert!(tmp.join("t-rustable-cli-busy/original.pdf").exists());
+}
+
+#[test]
 fn merge_takes_page_ranges_in_order() {
     let h = Home::new();
     let a = h.file("a.pdf", &text_pdf(&["A1", "A2", "A3"]));
