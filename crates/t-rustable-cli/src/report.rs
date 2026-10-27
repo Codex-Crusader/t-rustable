@@ -23,8 +23,11 @@ impl log::Log for Stderr {
 
     fn log(&self, record: &log::Record<'_>) {
         if self.enabled(record.metadata()) {
+            // A failed mod call can carry names from the mod binary. Keep the terminal safe.
+            use t_rustable_plugin_host::services::{MAX_TEXT, printable};
             let level = record.level().as_str().to_ascii_lowercase();
-            eprintln!("{level} [{}] {}", record.target(), record.args());
+            let message = printable(&record.args().to_string(), 4 * MAX_TEXT);
+            eprintln!("{level} [{}] {message}", printable(record.target(), 128));
         }
     }
 
