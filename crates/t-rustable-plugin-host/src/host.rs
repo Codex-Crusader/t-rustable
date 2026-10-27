@@ -8,7 +8,7 @@ use crate::state::{
 };
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
@@ -100,7 +100,6 @@ struct Exports {
 
 struct LoadedMod {
     manifest: Manifest,
-    dir: PathBuf,
     pre: InstancePre<HostState>,
     store: Store<HostState>,
     exports: Exports,
@@ -196,7 +195,6 @@ impl ModHost {
             id.clone(),
             LoadedMod {
                 manifest,
-                dir: dir.to_path_buf(),
                 pre,
                 store,
                 exports,
@@ -320,10 +318,6 @@ impl ModHost {
 
     pub fn manifests(&self) -> impl Iterator<Item = &Manifest> {
         self.mods.values().map(|m| &m.manifest)
-    }
-
-    pub fn mod_dir(&self, id: &str) -> Option<&Path> {
-        self.mods.get(id).map(|m| m.dir.as_path())
     }
 
     pub fn is_disabled(&self, id: &str) -> bool {
