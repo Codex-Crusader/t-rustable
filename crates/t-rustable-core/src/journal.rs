@@ -14,7 +14,7 @@ use crate::ids::Seed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -74,6 +74,8 @@ fn write_synced(path: &Path, data: &[u8]) -> Result<()> {
 pub struct Journal {
     dir: PathBuf,
     lines: File,
+    /// The length of the complete lines in `commands.jsonl`.
+    len: u64,
     written: HashSet<AssetId>,
 }
 
@@ -104,6 +106,7 @@ impl Journal {
         Ok(Self {
             dir,
             lines,
+            len: 0,
             written: HashSet::new(),
         })
     }
@@ -175,14 +178,12 @@ impl Journal {
             .and_then(|_| lines.sync_all())
             .map_err(|e| io(&path, e))?;
         let mut lines = lines;
-        use std::io::Seek;
-        lines
-            .seek(std::io::SeekFrom::End(0))
-            .map_err(|e| io(&path, e))?;
+        lines.seek(SeekFrom::End(0)).map_err(|e| io(&path, e))?;
         let written = assets.ids().collect();
         Ok(Self {
             dir: dir.to_path_buf(),
             lines,
+            len: complete as u64,
             written,
         })
     }
@@ -208,10 +209,20 @@ impl Journal {
         let mut line = serde_json::to_vec(entry).map_err(|e| CoreError::internal(e.to_string()))?;
         line.push(b'\n');
         let path = self.dir.join(COMMANDS);
-        self.lines
+        if let Err(e) = self
+            .lines
             .write_all(&line)
             .and_then(|_| self.lines.sync_data())
-            .map_err(|e| io(&path, e))
+        {
+            // A partial line would make the next entry unreadable. Remove it.
+            let cut = self.lines.set_len(self.len);
+            if let Err(c) = cut.and_then(|_| self.lines.seek(SeekFrom::Start(self.len))) {
+                log::error!("{}: cannot remove a partial line: {c}", path.display());
+            }
+            return Err(io(&path, e));
+        }
+        self.len += line.len() as u64;
+        Ok(())
     }
 
     /// Deletes the journal, when the user closes the session.
