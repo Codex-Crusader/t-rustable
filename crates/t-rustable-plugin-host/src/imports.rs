@@ -2,7 +2,7 @@
 
 use crate::bindings::v0_1::generated::t_rustable::api::{document, edit, files, host, types, ui};
 use crate::bindings::v0_1::{self as cv, api_error};
-use crate::services::FileFilter;
+use crate::services::{FileFilter, MAX_TEXT, printable};
 use crate::state::{
     CallWorld, DocRes, HostState, MAX_OPEN_TRANSACTIONS, MAX_OVERLAY_IMAGE, MAX_PICKED_FILE,
     MAX_SETTINGS, PickedRes, SessionRef, TxRes,
@@ -463,7 +463,13 @@ impl edit::HostTransaction for HostState {
 
 impl host::Host for HostState {
     fn log(&mut self, level: types::LogLevel, message: String) {
-        self.services.ui.log(&self.mod_id, level, &message);
+        let level = match level {
+            types::LogLevel::Debug => log::Level::Debug,
+            types::LogLevel::Info => log::Level::Info,
+            types::LogLevel::Warn => log::Level::Warn,
+            types::LogLevel::Error => log::Level::Error,
+        };
+        log::log!(target: &self.mod_id, level, "{}", printable(&message, MAX_TEXT));
     }
 
     fn progress(&mut self, fraction: f32, message: String) {
@@ -472,6 +478,7 @@ impl host::Host for HostState {
         } else {
             0.0
         };
+        let message = printable(&message, MAX_TEXT);
         self.services.ui.progress(&self.mod_id, fraction, &message);
     }
 
@@ -527,7 +534,7 @@ impl ui::Host for HostState {
     }
 
     fn set_overlay(&mut self, shapes: Vec<types::OverlayShape>) {
-        let shapes = labelled(&self.services, &self.mod_id, shapes);
+        let shapes = labelled(&self.mod_id, shapes);
         self.services.ui.set_overlay(&self.mod_id, shapes);
     }
 
@@ -563,10 +570,12 @@ impl ui::Host for HostState {
     }
 
     fn notify(&mut self, level: ui::NotifyLevel, message: String) {
+        let message = printable(&message, MAX_TEXT);
         self.services.ui.notify(&self.mod_id, level, &message);
     }
 
     fn confirm(&mut self, title: String, message: String) -> bool {
+        let title = printable(&title, MAX_TEXT);
         self.services.ui.confirm(&self.mod_id, &title, &message)
     }
 
@@ -576,22 +585,18 @@ impl ui::Host for HostState {
 }
 
 /// Removes overlay shapes without a label (mod system rule 7), and logs a warning.
-pub(crate) fn labelled(
-    services: &crate::state::Services,
-    mod_id: &str,
-    shapes: Vec<types::OverlayShape>,
-) -> Vec<types::OverlayShape> {
+pub(crate) fn labelled(mod_id: &str, shapes: Vec<types::OverlayShape>) -> Vec<types::OverlayShape> {
     let total = shapes.len();
     let kept: Vec<_> = shapes
         .into_iter()
         .filter(|s| !label(s).trim().is_empty())
         .collect();
     if kept.len() < total {
-        let message = format!(
+        log::warn!(
+            target: mod_id,
             "{} overlay shapes have no label. The host does not show them.",
             total - kept.len()
         );
-        services.ui.log(mod_id, types::LogLevel::Warn, &message);
     }
     kept
 }
@@ -622,10 +627,10 @@ impl files::Host for HostState {
                 extensions: f.extensions,
             })
             .collect();
-        let Some(path) = self
-            .services
-            .files
-            .pick(&self.mod_id, &options.title, &filters)
+        let Some(path) =
+            self.services
+                .files
+                .pick(&self.mod_id, &printable(&options.title, MAX_TEXT), &filters)
         else {
             return Ok(None);
         };

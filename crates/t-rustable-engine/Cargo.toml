@@ -21,6 +21,7 @@ libloading = "0.9"
 png = "0.18"
 qpdf = { version = "0.3.7", features = ["vendored"] }
 serde = { version = "1", features = ["derive", "rc"] }
+log = "0.4"
 
 [dev-dependencies]
 t-rustable-engine = { path = ".", features = ["test-hooks"] }

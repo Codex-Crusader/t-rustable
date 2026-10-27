@@ -177,6 +177,10 @@ fn run(shared: &Shared, mut state: State) {
             })) {
                 Ok(r) => r,
                 Err(_) => {
+                    // The panic hook of the front end writes the panic message.
+                    log::error!(
+                        "PDFium panicked. The engine closes all documents and starts it again."
+                    );
                     restart(&mut state);
                     shared.restarts.fetch_add(1, Ordering::Relaxed);
                     Err(EngineError::Restarted)

@@ -80,7 +80,7 @@ pub fn resolve(id: &str, folders: &Folders, resources: &Resources) -> Result<Mod
 
 /// A mod host only for the component checks. It runs no mod code.
 fn checker(resources: &Resources) -> Result<ModHost, Problem> {
-    let notes = Arc::new(Notes::new(false));
+    let notes = Arc::new(Notes::default());
     let services = Services {
         ui: Arc::new(CliUi(notes.clone())),
         files: Arc::new(CliFiles(notes)),

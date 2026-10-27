@@ -399,9 +399,12 @@ impl ModHost {
         if let Some(rep) = doc_rep {
             let _ = state.table.delete(Resource::<DocRes>::new_own(rep));
         }
-        let call = state.call.take();
-        let changes = call.as_ref().map(|c| c.changes.clone()).unwrap_or_default();
-        for rep in call.map(|c| c.transactions).unwrap_or_default() {
+        let (changes, transactions) = state
+            .call
+            .take()
+            .map(|c| (c.changes, c.transactions))
+            .unwrap_or_default();
+        for rep in transactions {
             if let Ok(tx) = state.table.get_mut(&Resource::<TxRes>::new_own(rep)) {
                 tx.tx = None;
             }
@@ -438,14 +441,17 @@ impl ModHost {
                     )
                 }
             }
+            // The panic hook of the front end writes the panic message.
             Err(_) => HostError::new(
                 "internal",
                 "The host failed during the mod call. The log has the details.",
             ),
         };
+        log::warn!(target: id, "The call failed: {failure}");
         m.failures += 1;
         if m.failures >= MAX_FAILURES {
             m.disabled = true;
+            log::warn!(target: id, "The mod is disabled after {MAX_FAILURES} failures in a row.");
         }
         let manifest = m.manifest.clone();
         let pre = m.pre.clone();
@@ -455,7 +461,10 @@ impl ModHost {
                 m.store = store;
                 m.exports = exports;
             }
-            Err(_) => self.mods.get_mut(id).unwrap().disabled = true,
+            Err(e) => {
+                log::error!(target: id, "The mod did not start again, so it is disabled: {e}");
+                self.mods.get_mut(id).unwrap().disabled = true;
+            }
         }
         Err(HostError { changes, ..failure })
     }
@@ -525,7 +534,7 @@ impl ModHost {
         )
         .map(|mut out| {
             let shapes = std::mem::take(&mut out.value.overlay);
-            out.value.overlay = crate::imports::labelled(&self.services, id, shapes);
+            out.value.overlay = crate::imports::labelled(id, shapes);
             out
         })
     }
@@ -663,7 +672,6 @@ mod tests {
         fn display_scale(&self, _: crate::api::types::PageId) -> Option<f64> {
             None
         }
-        fn log(&self, _: &str, _: crate::api::types::LogLevel, _: &str) {}
         fn progress(&self, _: &str, _: f32, _: &str) {}
     }
 

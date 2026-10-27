@@ -352,6 +352,7 @@ fn document_command(command: Top, json: bool, verbose: bool) -> ExitCode {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    report::init_logger(cli.verbose);
     let result = match cli.command {
         Top::Worker => return workers::worker_main(),
         Top::Mods(Mods::New { name, id, dir, sdk }) => new::run(new::NewMod { name, id, dir, sdk })

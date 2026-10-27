@@ -1,10 +1,29 @@
 //! The outside world of the host. The GUI and the CLI implement these traits.
 
-use crate::api::types::{LogLevel, OverlayShape, PageId};
+use crate::api::types::{OverlayShape, PageId};
 use crate::api::ui::{Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+/// The longest mod text, in bytes, for the log, a progress message, or a notice.
+pub const MAX_TEXT: usize = 2048;
+
+/// Mod text that is safe for a log file or a terminal. Control characters and
+/// direction overrides become spaces, so the text cannot start a new line, send a
+/// terminal escape, or show in a false order. The text is cut to `max` bytes.
+pub fn printable(text: &str, max: usize) -> String {
+    let mut out = String::with_capacity(text.len().min(max));
+    for c in text.chars() {
+        if out.len() + c.len_utf8() > max {
+            break;
+        }
+        let unsafe_char =
+            c.is_control() || matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}');
+        out.push(if unsafe_char { ' ' } else { c });
+    }
+    out
+}
 
 /// Registrations, overlays, messages, and the page view. All methods get the mod ID.
 pub trait UiBridge: Send + Sync {
@@ -23,7 +42,6 @@ pub trait UiBridge: Send + Sync {
     fn context(&self, mod_id: &str) -> UiContext;
     /// CSS pixels per PDF point of the page view, or None if the page is not shown.
     fn display_scale(&self, page: PageId) -> Option<f64>;
-    fn log(&self, mod_id: &str, level: LogLevel, message: &str);
     fn progress(&self, mod_id: &str, fraction: f32, message: &str);
 }
 

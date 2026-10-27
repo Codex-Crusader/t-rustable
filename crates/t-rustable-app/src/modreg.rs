@@ -251,10 +251,6 @@ impl Mods {
         mods
     }
 
-    fn log(&self, level: &str, message: &str) {
-        self.shared.log.write(level, "mods", message);
-    }
-
     fn save_config(&self) -> Result<(), String> {
         let json = serde_json::to_vec_pretty(&self.config).map_err(|e| e.to_string())?;
         let tmp = self.config_file.with_extension("json.tmp");
@@ -401,7 +397,7 @@ impl Mods {
                         entry.loaded = true;
                     }
                     Err(e) => {
-                        self.log("error", &format!("{}: {e}", entry.dir.display()));
+                        log::error!("{}: {e}", entry.dir.display());
                         entry.error = Some(e);
                     }
                 }
@@ -719,7 +715,11 @@ impl Mods {
                 Ok(()) => ("info", format!("Loaded {} again.", dir.display())),
                 Err(e) => ("error", format!("{} did not load: {e}", dir.display())),
             };
-            self.log(level, &message);
+            if result.is_ok() {
+                log::info!("{message}");
+            } else {
+                log::error!("{message}");
+            }
             self.bridge.app_notice(level, &message);
         }
     }

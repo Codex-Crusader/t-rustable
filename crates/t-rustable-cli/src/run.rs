@@ -123,7 +123,7 @@ impl Runner {
     /// Starts the engine and loads the mods of the plan. An error here stops the command.
     pub fn new(plan: Plan) -> Result<Self, Problem> {
         let env = Env::start()?;
-        let notes = Arc::new(Notes::new(plan.verbose));
+        let notes = Arc::new(Notes::default());
         let host = if plan.mods.is_empty() {
             None
         } else {

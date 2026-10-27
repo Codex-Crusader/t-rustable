@@ -4,7 +4,7 @@
 
 mod bridge;
 mod commands;
-mod log;
+mod logfile;
 mod modcmds;
 mod modreg;
 mod modthread;
@@ -130,14 +130,14 @@ fn main() {
     if args.self_test.is_some() {
         selftest::watchdog();
     }
+    logfile::Log::install(&folders.log);
+    log::info!("{}", banner());
     let resources = Resources::find().unwrap_or_else(|e| fail(&e));
-    let log = log::Log::open(&folders.log);
-    log.write("info", "app", &banner());
     let engine = Engine::start(&resources.pdfium)
         .unwrap_or_else(|e| fail(&format!("PDFium did not start: {e}")));
     let fonts = Arc::new(Fonts::load(&resources.fonts).unwrap_or_else(|e| fail(&e.to_string())));
     let settings = Arc::new(FileSettings::new(&folders.config));
-    let shared = Arc::new(Shared::new(engine, folders, log));
+    let shared = Arc::new(Shared::new(engine, folders));
     let bridge = Arc::new(GuiBridge::new(shared.clone()));
 
     let services = Services {
@@ -241,7 +241,7 @@ fn main() {
                     Err(tiles::TileError::Gone) => respond(410, "text/plain", Vec::new()),
                     Err(tiles::TileError::Cancelled) => respond(409, "text/plain", Vec::new()),
                     Err(tiles::TileError::Failed(m)) => {
-                        shared.log.write("error", "tiles", &m);
+                        log::error!("{path}: {m}");
                         respond(500, "text/plain", m.into_bytes())
                     }
                 };

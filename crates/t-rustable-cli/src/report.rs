@@ -13,6 +13,34 @@ pub const FAILED: u8 = 1;
 /// The command cannot start: bad arguments, a bad recipe, or a mod that cannot run.
 pub const USAGE: u8 = 2;
 
+/// Writes log records to stderr: warnings and errors, and with `--verbose` all records.
+struct Stderr;
+
+impl log::Log for Stderr {
+    fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+        metadata.level() <= log::max_level()
+    }
+
+    fn log(&self, record: &log::Record<'_>) {
+        if self.enabled(record.metadata()) {
+            let level = record.level().as_str().to_ascii_lowercase();
+            eprintln!("{level} [{}] {}", record.target(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+/// Sets the log level. The first call also installs the logger.
+pub fn init_logger(verbose: bool) {
+    let _ = log::set_logger(&Stderr);
+    log::set_max_level(if verbose {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Warn
+    });
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Problem {
     pub code: String,

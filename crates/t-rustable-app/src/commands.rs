@@ -91,7 +91,7 @@ impl App {
             return;
         }
         if let Err(e) = self.shared.apply_changes(doc, changes) {
-            self.shared.log.write("error", "app", &e.to_string());
+            log::error!("{e}");
         }
         if let Some(app) = self.shared.app.get() {
             let _ = app.emit(

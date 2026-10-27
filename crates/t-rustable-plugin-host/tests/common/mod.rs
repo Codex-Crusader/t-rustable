@@ -8,7 +8,7 @@ use std::time::Duration;
 use t_rustable_core::fonts::Fonts;
 use t_rustable_core::{OpenOptions, PageId, Session};
 use t_rustable_engine::Engine;
-use t_rustable_plugin_host::api::types::{self, LogLevel, OverlayShape};
+use t_rustable_plugin_host::api::types::{self, OverlayShape};
 use t_rustable_plugin_host::api::ui::{
     Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext,
 };
@@ -117,7 +117,6 @@ impl UiBridge for TestUi {
     fn display_scale(&self, _: types::PageId) -> Option<f64> {
         Some(1.0)
     }
-    fn log(&self, _: &str, _: LogLevel, _: &str) {}
     fn progress(&self, _: &str, _: f32, _: &str) {}
 }
 
@@ -190,7 +189,6 @@ impl UiBridge for PanicUi {
     fn display_scale(&self, _: types::PageId) -> Option<f64> {
         None
     }
-    fn log(&self, _: &str, _: LogLevel, _: &str) {}
     fn progress(&self, _: &str, _: f32, _: &str) {}
 }
 

@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
-use t_rustable_plugin_host::api::types::{LogLevel, OverlayShape, PageId};
+use t_rustable_plugin_host::api::types::{OverlayShape, PageId};
 use t_rustable_plugin_host::api::ui::{
     Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext,
 };
@@ -392,16 +392,6 @@ impl UiBridge for GuiBridge {
         let doc = c.doc?;
         self.shared.view(doc, page_id(page))?;
         Some(c.zoom * 96.0 / 72.0)
-    }
-
-    fn log(&self, mod_id: &str, level: LogLevel, message: &str) {
-        let level = match level {
-            LogLevel::Debug => "debug",
-            LogLevel::Info => "info",
-            LogLevel::Warn => "warn",
-            LogLevel::Error => "error",
-        };
-        self.shared.log.write(level, mod_id, message);
     }
 
     fn progress(&self, mod_id: &str, fraction: f32, message: &str) {

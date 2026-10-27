@@ -46,6 +46,7 @@ pub fn worker_main() -> ExitCode {
         Ok(Ok(plan)) => plan,
         _ => return ExitCode::from(crate::report::USAGE),
     };
+    crate::report::init_logger(plan.verbose);
     let mut runner = match Runner::new(plan) {
         Ok(r) => r,
         Err(e) => {

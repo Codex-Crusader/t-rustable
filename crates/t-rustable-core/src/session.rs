@@ -711,19 +711,22 @@ impl Session {
             return;
         }
         // A failed checkpoint only makes undo slower.
-        let Ok(Response::Saved(bytes)) = ask(
+        let bytes = match ask(
             &self.engine,
             Priority::Background,
             Request::Save { doc: self.key },
-        ) else {
-            return;
+        ) {
+            Ok(Response::Saved(bytes)) => bytes,
+            Ok(r) => return log::warn!("No checkpoint: {}", unexpected(r)),
+            Err(e) => return log::warn!("No checkpoint: {e}"),
         };
         let path = self
             .journal
             .dir()
             .join(format!("checkpoint-{}.pdf", self.applied));
-        if std::fs::write(&path, &bytes).is_err() {
-            return;
+        if let Err(e) = std::fs::write(&path, &bytes) {
+            let _ = std::fs::remove_file(&path);
+            return log::warn!("No checkpoint: {}: {e}", path.display());
         }
         self.checkpoints.push(Checkpoint {
             applied: self.applied,

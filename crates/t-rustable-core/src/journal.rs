@@ -239,8 +239,9 @@ pub fn list_unclosed(sessions_dir: &Path) -> Result<Vec<Unclosed>> {
         let Ok(bytes) = fs::read(dir.join(MANIFEST)) else {
             continue;
         };
-        if let Ok(manifest) = serde_json::from_slice::<Manifest>(&bytes) {
-            out.push(Unclosed { dir, manifest });
+        match serde_json::from_slice::<Manifest>(&bytes) {
+            Ok(manifest) => out.push(Unclosed { dir, manifest }),
+            Err(e) => log::warn!("{}: the journal manifest is damaged: {e}", dir.display()),
         }
     }
     out.sort_by(|a, b| a.dir.cmp(&b.dir));

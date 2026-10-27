@@ -3,7 +3,6 @@
 //! Lock order: never lock a session while you hold `Shared::docs`. Copy the `SessionRef`
 //! out first. The mod thread can hold a session lock while it calls the bridge.
 
-use crate::log::Log;
 use crate::tiles::TileCache;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -71,7 +70,6 @@ pub struct Context {
 pub struct Shared {
     pub engine: Engine,
     pub folders: Folders,
-    pub log: Log,
     pub docs: Mutex<BTreeMap<DocId, Doc>>,
     next_doc: Mutex<DocId>,
     pub context: Mutex<Context>,
@@ -86,11 +84,10 @@ pub struct Shared {
 }
 
 impl Shared {
-    pub fn new(engine: Engine, folders: Folders, log: Log) -> Self {
+    pub fn new(engine: Engine, folders: Folders) -> Self {
         Self {
             engine,
             folders,
-            log,
             docs: Mutex::new(BTreeMap::new()),
             next_doc: Mutex::new(1),
             context: Mutex::new(Context {

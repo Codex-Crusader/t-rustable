@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use t_rustable_plugin_host::api::types::{LogLevel, OverlayShape, PageId};
+use t_rustable_plugin_host::api::types::{OverlayShape, PageId};
 use t_rustable_plugin_host::api::ui::{
     Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext,
 };
@@ -16,17 +16,9 @@ const NO_UI: &str = "The command line has no UI.";
 #[derive(Default)]
 pub struct Notes {
     notes: Mutex<Vec<String>>,
-    verbose: bool,
 }
 
 impl Notes {
-    pub fn new(verbose: bool) -> Self {
-        Self {
-            notes: Mutex::default(),
-            verbose,
-        }
-    }
-
     fn add(&self, note: String) {
         self.notes.lock().unwrap().push(note);
     }
@@ -86,15 +78,8 @@ impl UiBridge for CliUi {
     fn display_scale(&self, _: PageId) -> Option<f64> {
         None
     }
-    fn log(&self, mod_id: &str, level: LogLevel, message: &str) {
-        if self.0.verbose {
-            eprintln!("{mod_id} ({level:?}): {message}");
-        }
-    }
     fn progress(&self, mod_id: &str, fraction: f32, message: &str) {
-        if self.0.verbose {
-            eprintln!("{mod_id}: {:.0}% {message}", fraction * 100.0);
-        }
+        log::info!(target: mod_id, "{:.0}% {message}", fraction * 100.0);
     }
 }
 
@@ -116,7 +101,7 @@ mod tests {
 
     #[test]
     fn questions_get_no_and_a_note() {
-        let notes = Arc::new(Notes::new(false));
+        let notes = Arc::new(Notes::default());
         let (ui, files) = (CliUi(notes.clone()), CliFiles(notes.clone()));
         assert!(!ui.confirm("m.x", "Delete all?", "Sure?"));
         assert_eq!(files.pick("m.x", "Pick an image", &[]), None);
