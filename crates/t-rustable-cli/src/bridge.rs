@@ -11,20 +11,31 @@ use t_rustable_plugin_host::api::ui::{
 use t_rustable_plugin_host::services::{FileFilter, FilePicker, UiBridge};
 
 const NO_UI: &str = "The command line has no UI.";
+/// A mod can send messages in a loop. The rest are only counted.
+const MAX_NOTES: usize = 100;
 
 /// Collects the messages of the mods for the current file.
 #[derive(Default)]
 pub struct Notes {
-    notes: Mutex<Vec<String>>,
+    notes: Mutex<(Vec<String>, usize)>,
 }
 
 impl Notes {
     fn add(&self, note: String) {
-        self.notes.lock().unwrap().push(note);
+        let mut n = self.notes.lock().unwrap();
+        if n.0.len() < MAX_NOTES {
+            n.0.push(note);
+        } else {
+            n.1 += 1;
+        }
     }
 
     pub fn take(&self) -> Vec<String> {
-        std::mem::take(&mut self.notes.lock().unwrap())
+        let (mut notes, more) = std::mem::take(&mut *self.notes.lock().unwrap());
+        if more > 0 {
+            notes.push(format!("The mods sent {more} more messages."));
+        }
+        notes
     }
 }
 
@@ -124,5 +135,17 @@ mod tests {
         assert!(n[1].contains("Pick an image"));
         assert_eq!(n[2], "m.x (warning): Careful");
         assert!(notes.take().is_empty());
+    }
+
+    #[test]
+    fn a_mod_in_a_loop_cannot_fill_the_notes() {
+        let notes = Arc::new(Notes::default());
+        let ui = CliUi(notes.clone());
+        for _ in 0..MAX_NOTES + 5 {
+            ui.notify("m.x", NotifyLevel::Info, "Again");
+        }
+        let n = notes.take();
+        assert_eq!(n.len(), MAX_NOTES + 1);
+        assert_eq!(n[MAX_NOTES], "The mods sent 5 more messages.");
     }
 }

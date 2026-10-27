@@ -6,6 +6,9 @@ import { S } from "./strings";
 import { CSS_PER_POINT, schemeBase } from "./tiles";
 import type { DocId, DocInfo, Hit, ModRow, ModUi, Offer, PageId, Shape } from "./types";
 
+/** A mod that sends many messages must not fill the window. */
+const MAX_TOASTS = 5;
+
 export const ZOOMS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
 
 export interface Tab {
@@ -231,6 +234,7 @@ class AppState {
   toast(level: Toast["level"], message: string) {
     const id = this.nextToast++;
     this.toasts.push({ id, level, message });
+    if (this.toasts.length > MAX_TOASTS) this.toasts.shift();
     this.liveMessage = message;
     setTimeout(() => this.dismiss(id), level === "error" ? 10000 : 5000);
   }

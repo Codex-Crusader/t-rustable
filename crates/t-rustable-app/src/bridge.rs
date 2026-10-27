@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
+use std::time::{Duration, Instant};
 use t_rustable_plugin_host::api::types::{OverlayShape, PageId};
 use t_rustable_plugin_host::api::ui::{
     Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext,
@@ -107,12 +108,16 @@ pub struct PanelMessageEvent {
 /// The media type and the bytes of an overlay image.
 pub type Image = Arc<(String, Vec<u8>)>;
 
+const NOTICES_PER_SECOND: u32 = 10;
+
 pub struct GuiBridge {
     shared: Arc<Shared>,
     pub mods: Mutex<BTreeMap<String, ModUi>>,
     confirms: Mutex<HashMap<u64, mpsc::Sender<bool>>>,
     next_confirm: AtomicU64,
     images: Mutex<HashMap<String, Vec<Image>>>,
+    /// Messages of each mod in the current second, so a mod in a loop cannot flood the window.
+    notices: Mutex<HashMap<String, (Instant, u32)>>,
     /// The panel theme file: `--tr-*` variables that the UI sends.
     pub theme_css: Mutex<String>,
 }
@@ -125,8 +130,26 @@ impl GuiBridge {
             confirms: Mutex::new(HashMap::new()),
             next_confirm: AtomicU64::new(1),
             images: Mutex::new(HashMap::new()),
+            notices: Mutex::new(HashMap::new()),
             theme_css: Mutex::new(String::new()),
         }
+    }
+
+    fn allow_notice(&self, mod_id: &str) -> bool {
+        let mut notices = self.notices.lock().unwrap();
+        let now = Instant::now();
+        let n = notices.entry(mod_id.to_string()).or_insert((now, 0));
+        if now.duration_since(n.0) >= Duration::from_secs(1) {
+            *n = (now, 0);
+        }
+        n.1 += 1;
+        if n.1 == NOTICES_PER_SECOND + 1 {
+            log::warn!(
+                target: &mod_target(mod_id),
+                "The mod sends too many messages. The app shows {NOTICES_PER_SECOND} each second."
+            );
+        }
+        n.1 <= NOTICES_PER_SECOND
     }
 
     /// The folder of a loaded mod that has panels and is not disabled.
@@ -345,6 +368,9 @@ impl UiBridge for GuiBridge {
     }
 
     fn notify(&self, mod_id: &str, level: NotifyLevel, message: &str) {
+        if !self.allow_notice(mod_id) {
+            return;
+        }
         let level = match level {
             NotifyLevel::Info => "info",
             NotifyLevel::Success => "success",
