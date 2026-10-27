@@ -106,9 +106,18 @@ impl Env {
     }
 
     pub fn read(&self, input: &Path) -> Result<Arc<[u8]>, Problem> {
-        std::fs::read(input)
-            .map(Arc::from)
-            .map_err(|e| Problem::new("io-error", format!("{}: {e}", input.display())))
+        let io = |e: std::io::Error| Problem::new("io-error", format!("{}: {e}", input.display()));
+        let mut file = std::fs::File::open(input).map_err(io)?;
+        // A device such as CON would wait for input.
+        if !file.metadata().map_err(io)?.is_file() {
+            return Err(Problem::new(
+                "io-error",
+                format!("{} is not a file.", input.display()),
+            ));
+        }
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut file, &mut bytes).map_err(io)?;
+        Ok(Arc::from(bytes))
     }
 
     pub fn open(&self, input: &Path) -> Result<Session, Problem> {

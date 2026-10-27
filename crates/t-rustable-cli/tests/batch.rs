@@ -314,6 +314,16 @@ fn run_saves_only_where_told() {
     assert_eq!(r["dryRun"], true);
     assert_eq!(std::fs::read(&a).unwrap(), original);
 
+    // Another path to the same file is the same file.
+    let link = h.path("link.pdf");
+    std::fs::hard_link(&a, &link).unwrap();
+    let link = link.to_str().unwrap();
+    let (code, _) = call(with(&[&a, "-o", link]));
+    assert_eq!(code, 2);
+    let (code, _) = call(with(&[&a, link, "--in-place"]));
+    assert_eq!(code, 2);
+    assert_eq!(std::fs::read(&a).unwrap(), original);
+
     let (code, _) = call(with(&[&a, "--in-place"]));
     assert_eq!(code, 0);
     assert_eq!(page_size(&h.info(&a)), (200.0, 100.0));

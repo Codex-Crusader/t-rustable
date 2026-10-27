@@ -122,14 +122,24 @@ pub struct Outputs {
     pub in_place: bool,
 }
 
-fn key(p: &Path) -> String {
+/// One key for all paths of one file: other case, short names, junctions, hard links.
+#[derive(PartialEq, Eq, Hash)]
+enum FileKey {
+    File(same_file::Handle),
+    Path(String),
+}
+
+fn key(p: &Path) -> FileKey {
+    if let Ok(h) = same_file::Handle::from_path(p) {
+        return FileKey::File(h);
+    }
     let p = std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
     let s = p.to_string_lossy().into_owned();
-    if cfg!(windows) { s.to_lowercase() } else { s }
+    FileKey::Path(if cfg!(windows) { s.to_lowercase() } else { s })
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {
-    matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
+    same_file::is_same_file(a, b).unwrap_or(false)
 }
 
 fn create_dir(dir: &Path) -> Result<(), Problem> {
