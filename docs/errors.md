@@ -96,6 +96,7 @@ The install, `t-rustable mods pack`, and developer folders give these codes. The
 | `invalid-component` | The component is not valid, its imports do not match the permissions, it does not export what its worlds need, or it imports a function that this version of T-Rustable does not have. |
 | `already-installed` | The same package (the same SHA-256) is installed. |
 | `not-installed` | The mod to remove is not installed. Built-in mods cannot be removed. |
+| `damaged-file` | `index.json` in the mods folder is damaged. Install and remove stop, so the file keeps the entries of the other mods. Move the file away, then install the mods again. |
 | `io-error` | A file operation failed during the install. The installed mods did not change. |
 
 ## Codes of the command line

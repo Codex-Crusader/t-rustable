@@ -99,6 +99,34 @@ fn an_update_lists_only_new_permissions() {
 }
 
 #[test]
+fn a_damaged_index_stops_install_and_remove_and_stays() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = ModStore::new(dir.path());
+    let host = new_host();
+    let bytes = package("com.example.rotate-page", "com.example.kept", "1.0.0");
+    let offer = store
+        .stage(&bytes, |m, c| host.check_component(m, c))
+        .unwrap();
+    store.install(offer).unwrap();
+    let index = dir.path().join("index.json");
+    std::fs::write(&index, b"{ damaged").unwrap();
+
+    let bytes = package("com.example.rotate-page", "com.example.new", "1.0.0");
+    let offer = store
+        .stage(&bytes, |m, c| host.check_component(m, c))
+        .unwrap();
+    assert_eq!(store.install(offer).unwrap_err().code, "damaged-file");
+    assert!(!dir.path().join("com.example.new").exists());
+    assert_eq!(
+        store.remove("com.example.kept").unwrap_err().code,
+        "damaged-file"
+    );
+    assert!(dir.path().join("com.example.kept").is_dir());
+    assert_eq!(std::fs::read(&index).unwrap(), b"{ damaged");
+    assert!(store.list().is_empty());
+}
+
+#[test]
 fn remove_deletes_the_folder() {
     let dir = tempfile::tempdir().unwrap();
     let store = ModStore::new(dir.path());

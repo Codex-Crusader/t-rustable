@@ -228,10 +228,7 @@ impl Mods {
         store.clean();
         let _ = std::fs::remove_dir_all(shared.folders.mods.join(DEV_CACHE));
         let config_file = shared.folders.config.join(CONFIG);
-        let config = std::fs::read(&config_file)
-            .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default();
+        let config = t_rustable_core::save::read_kept(&config_file);
         let mut mods = Self {
             host,
             store,
@@ -253,10 +250,7 @@ impl Mods {
 
     fn save_config(&self) -> Result<(), String> {
         let json = serde_json::to_vec_pretty(&self.config).map_err(|e| e.to_string())?;
-        let tmp = self.config_file.with_extension("json.tmp");
-        std::fs::write(&tmp, json)
-            .and_then(|()| std::fs::rename(&tmp, &self.config_file))
-            .map_err(|e| format!("{}: {e}", self.config_file.display()))
+        t_rustable_core::save::write_atomic(&self.config_file, &json).map_err(|e| e.to_string())
     }
 
     pub fn builtin_dir(&self) -> &Path {

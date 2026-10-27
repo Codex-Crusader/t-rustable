@@ -82,25 +82,42 @@ impl ModStore {
 
     /// The installed mods. A folder whose manifest cannot be read is skipped.
     pub fn list(&self) -> Vec<Installed> {
-        let index = self.read_index();
+        let index = self.read_index().unwrap_or_else(|e| {
+            log::error!("{e}");
+            Index::default()
+        });
         index
             .mods
             .iter()
-            .filter_map(|(id, entry)| {
-                let dir = self.dir.join(id);
-                let json = std::fs::read_to_string(dir.join("manifest.json")).ok()?;
-                let manifest = Manifest::parse(&json).ok()?;
-                (manifest.id == *id).then(|| Installed {
-                    manifest,
-                    sha256: entry.sha256.clone(),
-                    dir,
-                })
-            })
+            .filter_map(|(id, entry)| self.installed(id, entry))
             .collect()
     }
 
     pub fn get(&self, id: &str) -> Option<Installed> {
-        self.list().into_iter().find(|m| m.manifest.id == id)
+        let index = self.read_index().ok()?;
+        self.installed(id, index.mods.get(id)?)
+    }
+
+    fn installed(&self, id: &str, entry: &IndexEntry) -> Option<Installed> {
+        let dir = self.dir.join(id);
+        let manifest = std::fs::read_to_string(dir.join("manifest.json"))
+            .map_err(|e| e.to_string())
+            .and_then(|json| Manifest::parse(&json).map_err(|e| format!("{e:?}")));
+        match manifest {
+            Ok(manifest) if manifest.id == id => Some(Installed {
+                manifest,
+                sha256: entry.sha256.clone(),
+                dir,
+            }),
+            Ok(_) => {
+                log::warn!("{}: the manifest has another mod ID", dir.display());
+                None
+            }
+            Err(e) => {
+                log::warn!("{}: {e}", dir.display());
+                None
+            }
+        }
     }
 
     /// Reads and checks a package, then unpacks it into the staging folder. `check`
@@ -152,6 +169,13 @@ impl ModStore {
 
     /// Moves a staged package into place. An installed version is replaced.
     pub fn install(&self, offer: Offer) -> Result<Installed, HostError> {
+        let mut index = match self.read_index() {
+            Ok(index) => index,
+            Err(e) => {
+                self.discard(offer);
+                return Err(e);
+            }
+        };
         let id = offer.manifest.id.clone();
         let target = self.dir.join(&id);
         let old = self.dir.join(OLD).join(token());
@@ -167,7 +191,6 @@ impl ModStore {
             let _ = std::fs::remove_dir_all(&offer.staging);
             return Err(io(&target, e));
         }
-        let mut index = self.read_index();
         index.mods.insert(
             id,
             IndexEntry {
@@ -176,7 +199,14 @@ impl ModStore {
                 permissions: offer.manifest.permissions.clone(),
             },
         );
-        self.write_index(&index)?;
+        if let Err(e) = self.write_index(&index) {
+            // Put the old version back, so the folders and the index agree.
+            let _ = std::fs::remove_dir_all(&target);
+            if had_old {
+                let _ = std::fs::rename(&old, &target);
+            }
+            return Err(e);
+        }
         if had_old {
             let _ = std::fs::remove_dir_all(&old);
         }
@@ -194,7 +224,7 @@ impl ModStore {
 
     /// Removes an installed mod.
     pub fn remove(&self, id: &str) -> Result<(), HostError> {
-        let mut index = self.read_index();
+        let mut index = self.read_index()?;
         if index.mods.remove(id).is_none() {
             return Err(error("not-installed", format!("{id} is not installed.")));
         }
@@ -214,20 +244,32 @@ impl ModStore {
         Ok(())
     }
 
-    fn read_index(&self) -> Index {
-        std::fs::read_to_string(self.dir.join(INDEX))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+    /// A missing index is empty. A damaged index is an error, so no install or remove
+    /// writes over the entries of the other mods.
+    fn read_index(&self) -> Result<Index, HostError> {
+        let path = self.dir.join(INDEX);
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Index::default()),
+            Err(e) => return Err(io(&path, e)),
+        };
+        serde_json::from_str(&text).map_err(|e| {
+            error(
+                "damaged-file",
+                format!(
+                    "{} is damaged: {e}. Move the file away, then install the mods again.",
+                    path.display()
+                ),
+            )
+        })
     }
 
     fn write_index(&self, index: &Index) -> Result<(), HostError> {
         std::fs::create_dir_all(&self.dir).map_err(|e| io(&self.dir, e))?;
-        let path = self.dir.join(INDEX);
-        let tmp = self.dir.join(format!("{INDEX}.{}", token()));
-        let json = serde_json::to_string_pretty(index).unwrap_or_default();
-        std::fs::write(&tmp, json).map_err(|e| io(&tmp, e))?;
-        std::fs::rename(&tmp, &path).map_err(|e| io(&path, e))
+        let json =
+            serde_json::to_vec_pretty(index).map_err(|e| error("internal", e.to_string()))?;
+        t_rustable_core::save::write_atomic(&self.dir.join(INDEX), &json)
+            .map_err(|e| error("io-error", e.to_string()))
     }
 }
 

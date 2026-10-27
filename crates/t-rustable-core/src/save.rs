@@ -14,6 +14,34 @@ fn io(path: &Path, e: std::io::Error) -> CoreError {
     CoreError::io(&path.display().to_string(), e)
 }
 
+/// Reads a JSON file that the app keeps, for example settings. A missing file gives the
+/// default. A damaged file also gives the default, but first it moves to
+/// `<name>.damaged`, so the next save does not replace it without a trace.
+pub fn read_kept<T: serde::de::DeserializeOwned + Default>(path: &Path) -> T {
+    let bytes = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return T::default(),
+        Err(e) => {
+            log::error!("{}: {e}", path.display());
+            return T::default();
+        }
+    };
+    serde_json::from_slice(&bytes).unwrap_or_else(|e| {
+        let mut aside = path.as_os_str().to_owned();
+        aside.push(".damaged");
+        let aside = std::path::PathBuf::from(aside);
+        match std::fs::rename(path, &aside) {
+            Ok(()) => log::error!(
+                "{} is damaged ({e}). It moved to {}.",
+                path.display(),
+                aside.display()
+            ),
+            Err(r) => log::error!("{} is damaged ({e}). It cannot move: {r}", path.display()),
+        }
+        T::default()
+    })
+}
+
 pub fn write_atomic(target: &Path, data: &[u8]) -> Result<()> {
     let name = target
         .file_name()
@@ -66,6 +94,23 @@ pub fn write_atomic(target: &Path, data: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn read_kept_moves_a_damaged_file_away() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("mods.json");
+        let read = || read_kept::<std::collections::BTreeMap<String, u32>>(&path);
+        assert!(read().is_empty());
+        std::fs::write(&path, br#"{"a": 1}"#).unwrap();
+        assert_eq!(read()["a"], 1);
+        std::fs::write(&path, b"{ damaged").unwrap();
+        assert!(read().is_empty());
+        assert!(!path.exists());
+        assert_eq!(
+            std::fs::read(dir.path().join("mods.json.damaged")).unwrap(),
+            b"{ damaged"
+        );
+    }
 
     #[test]
     fn replaces_the_target_and_leaves_no_temporary_file() {

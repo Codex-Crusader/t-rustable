@@ -189,15 +189,7 @@ impl Runner {
 
 /// Writes a new file: a temporary file first, then a rename.
 pub fn write_file(path: &Path, bytes: &[u8]) -> Result<(), Problem> {
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".tmp");
-    let tmp = PathBuf::from(tmp);
-    std::fs::write(&tmp, bytes)
-        .and_then(|()| std::fs::rename(&tmp, path))
-        .map_err(|e| {
-            let _ = std::fs::remove_file(&tmp);
-            Problem::new("io-error", format!("{}: {e}", path.display()))
-        })
+    t_rustable_core::save::write_atomic(path, bytes).map_err(Problem::from)
 }
 
 fn round(x: f64) -> f64 {

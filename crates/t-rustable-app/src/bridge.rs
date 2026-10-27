@@ -459,22 +459,22 @@ impl FileSettings {
 
     fn with<R>(&self, mod_id: &str, f: impl FnOnce(&mut BTreeMap<String, String>) -> R) -> R {
         let mut cache = self.cache.lock().unwrap();
-        let map = cache.entry(mod_id.to_string()).or_insert_with(|| {
-            std::fs::read(self.file(mod_id))
-                .ok()
-                .and_then(|b| serde_json::from_slice(&b).ok())
-                .unwrap_or_default()
-        });
+        let map = cache
+            .entry(mod_id.to_string())
+            .or_insert_with(|| t_rustable_core::save::read_kept(&self.file(mod_id)));
         f(map)
     }
 
     fn save(&self, mod_id: &str, map: &BTreeMap<String, String>) {
-        let _ = std::fs::create_dir_all(&self.dir);
-        let tmp = self.file(mod_id).with_extension("json.tmp");
-        if let Ok(json) = serde_json::to_vec_pretty(map)
-            && std::fs::write(&tmp, json).is_ok()
-        {
-            let _ = std::fs::rename(&tmp, self.file(mod_id));
+        let saved = std::fs::create_dir_all(&self.dir)
+            .map_err(|e| e.to_string())
+            .and_then(|()| serde_json::to_vec_pretty(map).map_err(|e| e.to_string()))
+            .and_then(|json| {
+                t_rustable_core::save::write_atomic(&self.file(mod_id), &json)
+                    .map_err(|e| e.to_string())
+            });
+        if let Err(e) = saved {
+            log::error!(target: mod_id, "The settings were not saved: {e}");
         }
     }
 }

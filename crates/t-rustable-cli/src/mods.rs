@@ -28,11 +28,19 @@ pub fn turned_off(folders: &Folders) -> BTreeSet<String> {
     struct Config {
         disabled: BTreeSet<String>,
     }
-    std::fs::read(folders.config.join("mods.json"))
-        .ok()
-        .and_then(|b| serde_json::from_slice::<Config>(&b).ok())
-        .unwrap_or_default()
-        .disabled
+    // The app owns this file, so a damaged file stays where it is.
+    let path = folders.config.join("mods.json");
+    match std::fs::read(&path) {
+        Ok(b) => serde_json::from_slice::<Config>(&b).unwrap_or_else(|e| {
+            log::warn!(
+                "{} is damaged ({e}). No mod counts as turned off.",
+                path.display()
+            );
+            Config::default()
+        }),
+        Err(_) => Config::default(),
+    }
+    .disabled
 }
 
 fn read_manifest(dir: &std::path::Path) -> Option<Manifest> {
