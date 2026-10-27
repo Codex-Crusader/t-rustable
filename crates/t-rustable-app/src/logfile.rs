@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use t_rustable_plugin_host::services::{MAX_TEXT, printable};
+use t_rustable_plugin_host::services::{MAX_TEXT, log_enabled, printable};
 
 /// A log file over this size moves to `t-rustable.old.log`, and a new file starts.
 const MAX_BYTES: u64 = 4 << 20;
@@ -71,7 +71,7 @@ impl Log {
 
 impl log::Log for Log {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
-        metadata.level() <= log::max_level()
+        log_enabled(metadata)
     }
 
     fn log(&self, record: &log::Record<'_>) {

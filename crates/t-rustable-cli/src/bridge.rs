@@ -79,7 +79,8 @@ impl UiBridge for CliUi {
         None
     }
     fn progress(&self, mod_id: &str, fraction: f32, message: &str) {
-        log::info!(target: mod_id, "{:.0}% {message}", fraction * 100.0);
+        let target = t_rustable_plugin_host::services::mod_target(mod_id);
+        log::info!(target: &target, "{:.0}% {message}", fraction * 100.0);
     }
 }
 

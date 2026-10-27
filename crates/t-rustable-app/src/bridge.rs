@@ -12,7 +12,9 @@ use t_rustable_plugin_host::api::ui::{
     Action, NotifyLevel, Panel, Shortcut, ToolbarItem, UiContext,
 };
 use t_rustable_plugin_host::bindings::v0_1::{api_page, page_id};
-use t_rustable_plugin_host::services::{FileFilter, FilePicker, SettingsStore, UiBridge};
+use t_rustable_plugin_host::services::{
+    FileFilter, FilePicker, SettingsStore, UiBridge, mod_target,
+};
 use tauri::Emitter;
 use tauri_plugin_dialog::DialogExt;
 
@@ -474,7 +476,7 @@ impl FileSettings {
                     .map_err(|e| e.to_string())
             });
         if let Err(e) = saved {
-            log::error!(target: mod_id, "The settings were not saved: {e}");
+            log::error!(target: &mod_target(mod_id), "The settings were not saved: {e}");
         }
     }
 }

@@ -441,11 +441,12 @@ impl ModHost {
                 "The host failed during the mod call. The log has the details.",
             ),
         };
-        log::warn!(target: id, "The call failed: {failure}");
+        let target = crate::services::mod_target(id);
+        log::warn!(target: &target, "The call failed: {failure}");
         m.failures += 1;
         if m.failures >= MAX_FAILURES {
             m.disabled = true;
-            log::warn!(target: id, "The mod is disabled after {MAX_FAILURES} failures in a row.");
+            log::warn!(target: &target, "The mod is disabled after {MAX_FAILURES} failures in a row.");
         }
         let manifest = m.manifest.clone();
         let pre = m.pre.clone();
@@ -456,7 +457,7 @@ impl ModHost {
                 m.exports = exports;
             }
             Err(e) => {
-                log::error!(target: id, "The mod did not start again, so it is disabled: {e}");
+                log::error!(target: &target, "The mod did not start again, so it is disabled: {e}");
                 self.mods.get_mut(id).unwrap().disabled = true;
             }
         }

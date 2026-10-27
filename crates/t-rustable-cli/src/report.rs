@@ -18,7 +18,7 @@ struct Stderr;
 
 impl log::Log for Stderr {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
-        metadata.level() <= log::max_level()
+        t_rustable_plugin_host::services::log_enabled(metadata)
     }
 
     fn log(&self, record: &log::Record<'_>) {

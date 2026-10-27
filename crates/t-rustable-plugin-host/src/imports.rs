@@ -2,7 +2,7 @@
 
 use crate::bindings::v0_1::generated::t_rustable::api::{document, edit, files, host, types, ui};
 use crate::bindings::v0_1::{self as cv, api_error};
-use crate::services::{FileFilter, MAX_TEXT, printable};
+use crate::services::{FileFilter, MAX_TEXT, mod_target, printable};
 use crate::state::{
     CallWorld, DocRes, HostState, MAX_OPEN_TRANSACTIONS, MAX_OVERLAY_IMAGE, MAX_PICKED_FILE,
     MAX_SETTINGS, PickedRes, SessionRef, TxRes,
@@ -469,7 +469,7 @@ impl host::Host for HostState {
             types::LogLevel::Warn => log::Level::Warn,
             types::LogLevel::Error => log::Level::Error,
         };
-        log::log!(target: &self.mod_id, level, "{}", printable(&message, MAX_TEXT));
+        log::log!(target: &mod_target(&self.mod_id), level, "{}", printable(&message, MAX_TEXT));
     }
 
     fn progress(&mut self, fraction: f32, message: String) {
@@ -593,7 +593,7 @@ pub(crate) fn labelled(mod_id: &str, shapes: Vec<types::OverlayShape>) -> Vec<ty
         .collect();
     if kept.len() < total {
         log::warn!(
-            target: mod_id,
+            target: &mod_target(mod_id),
             "{} overlay shapes have no label. The host does not show them.",
             total - kept.len()
         );

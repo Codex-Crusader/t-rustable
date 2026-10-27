@@ -25,6 +25,22 @@ pub fn printable(text: &str, max: usize) -> String {
     out
 }
 
+/// The log target of the records of a mod.
+pub fn mod_target(mod_id: &str) -> String {
+    format!("mod:{mod_id}")
+}
+
+/// Records of T-Rustable, its mods, and panics pass at all levels. Other crates pass
+/// only warnings and errors, because the debug output of Cranelift is very large.
+pub fn log_enabled(metadata: &log::Metadata<'_>) -> bool {
+    let target = metadata.target();
+    metadata.level() <= log::max_level()
+        && (metadata.level() <= log::Level::Warn
+            || target.starts_with("t_rustable")
+            || target.starts_with("mod:")
+            || target == "panic")
+}
+
 /// Registrations, overlays, messages, and the page view. All methods get the mod ID.
 pub trait UiBridge: Send + Sync {
     fn register_action(&self, mod_id: &str, action: Action) -> Result<(), String>;
@@ -110,5 +126,29 @@ pub struct NoFiles;
 impl FilePicker for NoFiles {
     fn pick(&self, _: &str, _: &str, _: &[FileFilter]) -> Option<PathBuf> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn printable_text_is_one_safe_line() {
+        assert_eq!(printable("a\nb\r\x1b[2J\u{202e}c", 100), "a b  [2J c");
+        assert_eq!(printable("ééé", 5), "éé");
+    }
+
+    #[test]
+    fn other_crates_log_only_warnings() {
+        log::set_max_level(log::LevelFilter::Debug);
+        let a_mod = mod_target("abc");
+        let ok = |level, target| {
+            log_enabled(&log::Metadata::builder().level(level).target(target).build())
+        };
+        assert!(ok(log::Level::Debug, "t_rustable_core::session"));
+        assert!(ok(log::Level::Info, &a_mod));
+        assert!(!ok(log::Level::Debug, "cranelift_codegen::context"));
+        assert!(ok(log::Level::Warn, "cranelift_codegen::context"));
     }
 }
