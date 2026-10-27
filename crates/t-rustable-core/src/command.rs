@@ -114,7 +114,7 @@ fn loaded<'a>(
     index: usize,
     reader: &mut dyn PageReader,
 ) -> Result<&'a mut PageEntry> {
-    let entry = &mut state.pages[index];
+    let entry = state.entry_mut(index);
     if entry.rotation.is_none() || entry.content.is_none() {
         let (rotation, content) = reader.read(entry.id)?;
         entry.rotation.get_or_insert(rotation);
@@ -292,18 +292,18 @@ impl Command {
         Ok(match self {
             Command::DeletePage { page } => {
                 let i = page_index(state, *page)?;
-                if state.pages.len() == 1 {
+                if state.page_count() == 1 {
                     return Err(CoreError::invalid(
                         "A document must keep at least one page.",
                     ));
                 }
-                state.pages.remove(i);
+                state.remove(i);
                 vec![(EditOp::DeletePage { page: i }, None)]
             }
             Command::MovePage { page, before } => {
                 let i = page_index(state, *page)?;
                 let to = match before {
-                    None => state.pages.len() - 1,
+                    None => state.page_count() - 1,
                     Some(b) if b == page => {
                         return Err(CoreError::invalid("A page cannot move before itself."));
                     }
@@ -312,8 +312,8 @@ impl Command {
                         if i < j { j - 1 } else { j }
                     }
                 };
-                let entry = state.pages.remove(i);
-                state.pages.insert(to, entry);
+                let entry = state.remove(i);
+                state.insert(to, [entry]);
                 if to == i {
                     Vec::new()
                 } else {
@@ -353,14 +353,14 @@ impl Command {
                 in_range("page height", *height, MAX_COORD)?;
                 let at = match before {
                     Some(b) => page_index(state, *b)?,
-                    None => state.pages.len(),
+                    None => state.page_count(),
                 };
                 let entry = PageEntry {
                     id: *id,
                     rotation: Some(0),
                     content: Some(PageContent::default()),
                 };
-                state.pages.insert(at, entry);
+                state.insert(at, [entry]);
                 vec![(
                     EditOp::InsertBlankPage {
                         at,
@@ -386,8 +386,9 @@ impl Command {
                         "Each inserted page needs exactly one page ID.",
                     ));
                 }
-                for (k, id) in ids.iter().enumerate() {
-                    if state.page_index(*id).is_some() || ids[..k].contains(id) {
+                let mut seen = std::collections::HashSet::new();
+                for id in ids {
+                    if state.page_index(*id).is_some() || !seen.insert(*id) {
                         return Err(CoreError::invalid(format!(
                             "The page ID {id} is already in use."
                         )));
@@ -398,19 +399,17 @@ impl Command {
                     .ok_or_else(|| CoreError::not_found(format!("PDF asset {source}")))?;
                 let at = match before {
                     Some(b) => page_index(state, *b)?,
-                    None => state.pages.len(),
+                    None => state.page_count(),
                 };
                 // The core reads the new pages from the engine after the commit.
-                for (k, id) in ids.iter().enumerate() {
-                    state.pages.insert(
-                        at + k,
-                        PageEntry {
-                            id: *id,
-                            rotation: None,
-                            content: None,
-                        },
-                    );
-                }
+                state.insert(
+                    at,
+                    ids.iter().map(|id| PageEntry {
+                        id: *id,
+                        rotation: None,
+                        content: None,
+                    }),
+                );
                 vec![(
                     EditOp::ImportPages {
                         source: data.clone(),
@@ -675,7 +674,7 @@ mod tests {
 
     impl T {
         fn page(&self, i: usize) -> PageId {
-            self.state.pages[i].id
+            self.state.pages()[i].id
         }
         fn step(&mut self, c: &Command) -> Result<Ops> {
             c.step(&mut self.state, &self.assets, &mut self.fake)
@@ -713,7 +712,7 @@ mod tests {
         let c = Command::DeletePage { page: p1 };
         assert_eq!(c.describe(&t.state), "Delete page 2");
         assert_eq!(ops(t.step(&c).unwrap()), [EditOp::DeletePage { page: 1 }]);
-        assert_eq!(t.state.pages.len(), 2);
+        assert_eq!(t.state.page_count(), 2);
         assert_eq!(t.err(&c).code, code::NOT_FOUND);
         let mut one = setup(1);
         let only = one.page(0);
@@ -834,7 +833,7 @@ mod tests {
         );
         assert_eq!(t.state.page_index(PageId(90)), Some(1));
         assert_eq!(t.state.page_index(PageId(91)), Some(2));
-        assert_eq!(t.state.pages[1].content, None, "read after the commit");
+        assert_eq!(t.state.pages()[1].content, None, "read after the commit");
         assert_eq!(t.err(&c).code, code::INVALID_ARGUMENT, "the IDs are in use");
         let bad = |ids: Vec<PageId>, pages: Vec<usize>, source| Command::InsertPdfPages {
             ids,

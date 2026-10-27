@@ -1,5 +1,7 @@
 //! Runs one task on each input file. A worker process (`--jobs`) runs the same code.
 
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -204,6 +206,7 @@ fn info(s: &mut Session, input: &Path) -> Result<Value, Problem> {
     let ids = s.page_ids();
     // Sizes as the reader sees them: the crop box, turned with the page rotation.
     let mut sizes: Vec<(f64, f64, usize)> = Vec::new();
+    let mut seen: HashMap<(u64, u64), usize> = HashMap::new();
     let mut labels = false;
     for (i, id) in ids.iter().enumerate() {
         let page = s.page(*id)?;
@@ -212,9 +215,12 @@ fn info(s: &mut Session, input: &Path) -> Result<Value, Problem> {
         if page.info.quarter_turns % 2 == 1 {
             (w, h) = (h, w);
         }
-        match sizes.iter_mut().find(|(sw, sh, _)| *sw == w && *sh == h) {
-            Some(size) => size.2 += 1,
-            None => sizes.push((w, h, 1)),
+        match seen.entry((w.to_bits(), h.to_bits())) {
+            Entry::Occupied(e) => sizes[*e.get()].2 += 1,
+            Entry::Vacant(e) => {
+                e.insert(sizes.len());
+                sizes.push((w, h, 1));
+            }
         }
         labels |= page.label != (i + 1).to_string();
     }

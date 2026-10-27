@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -153,9 +154,11 @@ pub struct PageEntry {
 }
 
 /// Page order and object IDs. Entry `i` of `pages` is engine page index `i`.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+/// `index` finds a page in constant time, so work on all pages stays linear.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct IdMap {
-    pub pages: Vec<PageEntry>,
+    pages: Vec<PageEntry>,
+    index: HashMap<PageId, usize>,
 }
 
 /// Where an object is: page index and engine index.
@@ -181,11 +184,47 @@ impl IdMap {
                 content: None,
             })
             .collect();
-        Self { pages }
+        let mut map = Self {
+            pages,
+            index: HashMap::new(),
+        };
+        map.reindex(0);
+        map
     }
 
     pub fn page_index(&self, id: PageId) -> Option<usize> {
-        self.pages.iter().position(|p| p.id == id)
+        self.index.get(&id).copied()
+    }
+
+    pub fn pages(&self) -> &[PageEntry] {
+        &self.pages
+    }
+
+    pub fn page_count(&self) -> usize {
+        self.pages.len()
+    }
+
+    /// The caller must not change `id`.
+    pub fn entry_mut(&mut self, index: usize) -> &mut PageEntry {
+        &mut self.pages[index]
+    }
+
+    pub fn remove(&mut self, index: usize) -> PageEntry {
+        let entry = self.pages.remove(index);
+        self.index.remove(&entry.id);
+        self.reindex(index);
+        entry
+    }
+
+    pub fn insert(&mut self, at: usize, entries: impl IntoIterator<Item = PageEntry>) {
+        self.pages.splice(at..at, entries);
+        self.reindex(at);
+    }
+
+    fn reindex(&mut self, from: usize) {
+        for (i, p) in self.pages.iter().enumerate().skip(from) {
+            self.index.insert(p.id, i);
+        }
     }
 
     pub fn page_ids(&self) -> Vec<PageId> {
@@ -216,6 +255,30 @@ impl IdMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_page_index_follows_removes_inserts_and_moves() {
+        let mut map = IdMap::original(&Seed([1; 32]), 5);
+        let check = |map: &IdMap| {
+            for (i, p) in map.pages().iter().enumerate() {
+                assert_eq!(map.page_index(p.id), Some(i));
+            }
+        };
+        let gone = map.remove(1).id;
+        assert_eq!(map.page_index(gone), None);
+        check(&map);
+        let new = |n| PageEntry {
+            id: PageId(n),
+            rotation: None,
+            content: None,
+        };
+        map.insert(0, [new(90), new(91)]);
+        check(&map);
+        let moved = map.remove(5);
+        map.insert(2, [moved]);
+        check(&map);
+        assert_eq!(map.page_count(), 6);
+    }
 
     #[test]
     fn ids_round_trip_as_hex() {

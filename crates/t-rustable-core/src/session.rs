@@ -181,8 +181,8 @@ impl PageReader for LiveReader<'_> {
             ))
         })?;
         if let (Some(r), Some(c)) = (
-            self.live.pages[index].rotation,
-            &self.live.pages[index].content,
+            self.live.pages()[index].rotation,
+            &self.live.pages()[index].content,
         ) {
             return Ok((r, c.clone()));
         }
@@ -199,7 +199,7 @@ impl PageReader for LiveReader<'_> {
         let Response::PageInfo(info) = query(Query::PageInfo { page: index })? else {
             return Err(CoreError::internal("no page info"));
         };
-        let entry = &self.live.pages[index];
+        let entry = &self.live.pages()[index];
         let content = match &entry.content {
             Some(c) => c.clone(),
             None => {
@@ -225,7 +225,7 @@ impl PageReader for LiveReader<'_> {
             }
         };
         let rotation = entry.rotation.unwrap_or(info.quarter_turns);
-        let entry = &mut self.live.pages[index];
+        let entry = self.live.entry_mut(index);
         entry.rotation = Some(rotation);
         entry.content = Some(content.clone());
         Ok((rotation, content))
@@ -853,7 +853,7 @@ impl Session {
         for field in fields {
             let page = self
                 .ids
-                .pages
+                .pages()
                 .get(field.page)
                 .map(|p| p.id)
                 .ok_or_else(|| CoreError::internal("bad field page"))?;
@@ -880,7 +880,7 @@ impl Session {
             .map(|h| {
                 let page = self
                     .ids
-                    .pages
+                    .pages()
                     .get(h.page)
                     .map(|p| p.id)
                     .ok_or_else(|| CoreError::internal("bad hit page"))?;
@@ -994,7 +994,7 @@ fn outline_entries(ids: &IdMap, items: Vec<OutlineItem>) -> Vec<OutlineEntry> {
         .into_iter()
         .map(|i| OutlineEntry {
             title: i.title,
-            page: i.page.and_then(|p| ids.pages.get(p)).map(|p| p.id),
+            page: i.page.and_then(|p| ids.pages().get(p)).map(|p| p.id),
             children: outline_entries(ids, i.children),
         })
         .collect()
