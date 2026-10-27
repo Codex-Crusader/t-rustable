@@ -19,7 +19,7 @@ use t_rustable_sdk::manifest::{Manifest, World, is_mod_id};
 
 use crate::bridge::{CliFiles, CliUi, Notes};
 use crate::report::{self, Problem};
-use crate::run::ModRef;
+use crate::run::{ModRef, read_file};
 
 /// IDs of the mods that the user turned off in the app.
 pub fn turned_off(folders: &Folders) -> BTreeSet<String> {
@@ -198,8 +198,7 @@ fn fail(json: bool, e: &Problem, exit: u8) -> ExitCode {
 }
 
 fn read_package(file: &Path) -> Result<t_rustable_tmod::Package, Problem> {
-    let bytes = std::fs::read(file)
-        .map_err(|e| Problem::new("io-error", format!("{}: {e}", file.display())))?;
+    let bytes = read_file(file)?;
     t_rustable_tmod::read(&bytes).map_err(|e| Problem::new(e.code, e.message))
 }
 
@@ -207,13 +206,11 @@ fn read_package(file: &Path) -> Result<t_rustable_tmod::Package, Problem> {
 pub fn install(file: &Path, yes: bool, json: bool) -> ExitCode {
     let folders = Folders::standard();
     let store = ModStore::new(&folders.mods);
-    let staged = std::fs::read(file)
-        .map_err(|e| Problem::new("io-error", format!("{}: {e}", file.display())))
-        .and_then(|bytes| {
-            let resources = Resources::find().map_err(|e| Problem::new("internal", e))?;
-            let host = checker(&resources)?;
-            Ok(store.stage(&bytes, |m, b| host.check_component(m, b))?)
-        });
+    let staged = read_file(file).and_then(|bytes| {
+        let resources = Resources::find().map_err(|e| Problem::new("internal", e))?;
+        let host = checker(&resources)?;
+        Ok(store.stage(&bytes, |m, b| host.check_component(m, b))?)
+    });
     let offer = match staged {
         Ok(o) => o,
         Err(e) => return fail(json, &e, report::FAILED),

@@ -142,7 +142,12 @@ fn a_run_removes_only_the_journals_of_stopped_runs() {
         std::fs::File::create(dir.join("lock")).unwrap()
     };
     // A killed run leaves its folder, and nothing holds the lock.
-    drop(journal("t-rustable-cli-stopped"));
+    let stopped = journal("t-rustable-cli-stopped");
+    let hour_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    stopped.set_modified(hour_ago).unwrap();
+    drop(stopped);
+    // A run that starts now: the lock is free for a moment, but the folder is new.
+    drop(journal("t-rustable-cli-starting"));
     let busy = journal("t-rustable-cli-busy");
     busy.lock().unwrap();
     let env = [("TMP", tmp_env), ("TEMP", tmp_env), ("TMPDIR", tmp_env)];
@@ -150,6 +155,7 @@ fn a_run_removes_only_the_journals_of_stopped_runs() {
     assert!(out.status.success(), "{}", text(&out));
     assert!(!tmp.join("t-rustable-cli-stopped").exists());
     assert!(tmp.join("t-rustable-cli-busy/original.pdf").exists());
+    assert!(tmp.join("t-rustable-cli-starting/original.pdf").exists());
 }
 
 #[test]

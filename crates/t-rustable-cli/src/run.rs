@@ -106,18 +106,7 @@ impl Env {
     }
 
     pub fn read(&self, input: &Path) -> Result<Arc<[u8]>, Problem> {
-        let io = |e: std::io::Error| Problem::new("io-error", format!("{}: {e}", input.display()));
-        let mut file = std::fs::File::open(input).map_err(io)?;
-        // A device such as CON would wait for input.
-        if !file.metadata().map_err(io)?.is_file() {
-            return Err(Problem::new(
-                "io-error",
-                format!("{} is not a file.", input.display()),
-            ));
-        }
-        let mut bytes = Vec::new();
-        std::io::Read::read_to_end(&mut file, &mut bytes).map_err(io)?;
-        Ok(Arc::from(bytes))
+        read_file(input).map(Arc::from)
     }
 
     pub fn open(&self, input: &Path) -> Result<Session, Problem> {
@@ -128,6 +117,27 @@ impl Env {
         };
         Ok(Session::open(&self.engine, self.read(input)?, options)?)
     }
+}
+
+/// Reads a file that the user named. A device such as CON would wait for input.
+pub fn read_file(path: &Path) -> Result<Vec<u8>, Problem> {
+    let io = |e: std::io::Error| Problem::new("io-error", format!("{}: {e}", path.display()));
+    let mut file = std::fs::File::open(path).map_err(io)?;
+    if !file.metadata().map_err(io)?.is_file() {
+        return Err(Problem::new(
+            "io-error",
+            format!("{} is not a file.", path.display()),
+        ));
+    }
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut file, &mut bytes).map_err(io)?;
+    Ok(bytes)
+}
+
+/// `read_file` for text.
+pub fn read_text(path: &Path) -> Result<String, Problem> {
+    String::from_utf8(read_file(path)?)
+        .map_err(|_| Problem::new("io-error", format!("{} is not UTF-8 text.", path.display())))
 }
 
 const SESSIONS_PREFIX: &str = "t-rustable-cli-";
@@ -148,13 +158,15 @@ fn remove_stale_sessions() {
             continue;
         }
         let dir = entry.path();
+        // A run that starts now has a new folder, and its lock can be free for a moment.
+        let old = |m: std::io::Result<std::fs::Metadata>| {
+            m.and_then(|m| m.modified())
+                .is_ok_and(|t| t.elapsed().is_ok_and(|age| age.as_secs() > 60))
+        };
         let stale = match std::fs::File::open(dir.join(LOCK)) {
-            Ok(f) => f.try_lock().is_ok(),
-            // No lock file yet: a run that starts now, or an older version.
-            Err(_) => entry
-                .metadata()
-                .and_then(|m| m.modified())
-                .is_ok_and(|t| t.elapsed().is_ok_and(|age| age.as_secs() > 60)),
+            Ok(f) => f.try_lock().is_ok() && old(f.metadata()),
+            // No lock file: a run that starts now, or an older version.
+            Err(_) => old(entry.metadata()),
         };
         if stale && std::fs::remove_dir_all(&dir).is_ok() {
             log::info!(
@@ -246,7 +258,8 @@ pub fn write_file(path: &Path, bytes: &[u8]) -> Result<(), Problem> {
 }
 
 fn round(x: f64) -> f64 {
-    (x * 10.0).round() / 10.0
+    // + 0.0 turns -0.0 into 0.0, so both are one page size.
+    (x * 10.0).round() / 10.0 + 0.0
 }
 
 fn count_outline(entries: &[OutlineEntry]) -> usize {

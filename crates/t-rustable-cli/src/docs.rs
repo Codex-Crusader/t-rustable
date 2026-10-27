@@ -11,7 +11,7 @@ use t_rustable_core::{PageId, SaveOptions};
 
 use crate::pages::{Range, merge_input};
 use crate::report::{self, FileResult, Problem, Style};
-use crate::run::{Env, Job, ModRef, Plan, Runner, Step};
+use crate::run::{Env, Job, ModRef, Plan, Runner, Step, read_text};
 
 fn usage(message: impl Into<String>) -> Problem {
     Problem::new("invalid-argument", message)
@@ -64,8 +64,7 @@ pub fn step(target: &str, args: Option<Value>) -> Result<Step, Problem> {
 pub fn parse_args(text: Option<String>, file: Option<PathBuf>) -> Result<Option<Value>, Problem> {
     let text = match (text, file) {
         (Some(t), _) => t,
-        (None, Some(f)) => std::fs::read_to_string(&f)
-            .map_err(|e| Problem::new("io-error", format!("{}: {e}", f.display())))?,
+        (None, Some(f)) => read_text(&f)?,
         (None, None) => return Ok(None),
     };
     serde_json::from_str(&text)
@@ -90,8 +89,7 @@ struct RecipeStep {
 
 /// Reads a recipe: `{"recipe": 1, "steps": [{"run": "<mod-id>:<action>", "args": {}}]}`.
 pub fn recipe(path: &Path) -> Result<Vec<Step>, Problem> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| Problem::new("io-error", format!("{}: {e}", path.display())))?;
+    let text = read_text(path)?;
     let bad = |m: String| {
         Problem::new("invalid-recipe", format!("{}: {m}", path.display()))
             .hint("See docs/cli.md for the recipe format.")
