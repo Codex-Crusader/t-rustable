@@ -15,7 +15,7 @@ use t_rustable_core::paths::{Folders, Resources};
 use t_rustable_plugin_host::install::ModStore;
 use t_rustable_plugin_host::services::MemorySettings;
 use t_rustable_plugin_host::{Limits, ModHost, Services};
-use t_rustable_sdk::manifest::{Manifest, World};
+use t_rustable_sdk::manifest::{Manifest, World, is_mod_id};
 
 use crate::bridge::{CliFiles, CliUi, Notes};
 use crate::report::{self, Problem};
@@ -50,7 +50,9 @@ fn read_manifest(dir: &std::path::Path) -> Option<Manifest> {
 
 /// Finds a mod with a batch job.
 pub fn resolve(id: &str, folders: &Folders, resources: &Resources) -> Result<ModRef, Problem> {
-    let found: Option<(PathBuf, Manifest)> = if id.starts_with("t-rustable.") {
+    let found: Option<(PathBuf, Manifest)> = if !is_mod_id(id) {
+        None
+    } else if id.starts_with("t-rustable.") {
         let builtin = resources
             .builtin_mods()
             .map_err(|e| Problem::new("internal", e))?;

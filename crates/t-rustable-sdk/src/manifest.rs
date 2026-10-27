@@ -179,7 +179,7 @@ impl Manifest {
 }
 
 /// Lowercase letters and digits, separated by single dots or dashes. 3 to 64 characters.
-fn is_mod_id(id: &str) -> bool {
+pub fn is_mod_id(id: &str) -> bool {
     (3..=64).contains(&id.len())
         && id.starts_with(|c: char| c.is_ascii_lowercase())
         && id.split(['.', '-']).all(|part| {

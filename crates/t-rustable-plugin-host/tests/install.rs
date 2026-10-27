@@ -127,6 +127,22 @@ fn a_damaged_index_stops_install_and_remove_and_stays() {
 }
 
 #[test]
+fn an_index_key_that_is_a_path_removes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mods = dir.path().join("mods");
+    let victim = dir.path().join("victim");
+    std::fs::create_dir_all(&mods).unwrap();
+    std::fs::create_dir_all(&victim).unwrap();
+    std::fs::write(victim.join("keep.txt"), b"x").unwrap();
+    let entry = r#"{"sha256": "00", "version": "1.0.0", "permissions": []}"#;
+    let index = format!(r#"{{"mods": {{"../victim": {entry}}}}}"#);
+    std::fs::write(mods.join("index.json"), index).unwrap();
+    let store = ModStore::new(&mods);
+    assert_eq!(store.remove("../victim").unwrap_err().code, "not-installed");
+    assert!(victim.join("keep.txt").exists());
+}
+
+#[test]
 fn remove_deletes_the_folder() {
     let dir = tempfile::tempdir().unwrap();
     let store = ModStore::new(dir.path());

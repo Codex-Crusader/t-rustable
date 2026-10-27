@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
-use t_rustable_sdk::manifest::Manifest;
+use t_rustable_sdk::manifest::{Manifest, is_mod_id};
 use t_rustable_sdk::permissions::Permission;
 
 use crate::HostError;
@@ -245,7 +245,8 @@ impl ModStore {
     }
 
     /// A missing index is empty. A damaged index is an error, so no install or remove
-    /// writes over the entries of the other mods.
+    /// writes over the entries of the other mods. A key that is not a mod ID is dropped,
+    /// because the key becomes a folder name (`..` or an absolute path).
     fn read_index(&self) -> Result<Index, HostError> {
         let path = self.dir.join(INDEX);
         let text = match std::fs::read_to_string(&path) {
@@ -253,7 +254,7 @@ impl ModStore {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Index::default()),
             Err(e) => return Err(io(&path, e)),
         };
-        serde_json::from_str(&text).map_err(|e| {
+        let mut index: Index = serde_json::from_str(&text).map_err(|e| {
             error(
                 "damaged-file",
                 format!(
@@ -261,7 +262,15 @@ impl ModStore {
                     path.display()
                 ),
             )
-        })
+        })?;
+        index.mods.retain(|id, _| {
+            let ok = is_mod_id(id);
+            if !ok {
+                log::warn!("{}: {id:?} is not a mod ID", path.display());
+            }
+            ok
+        });
+        Ok(index)
     }
 
     fn write_index(&self, index: &Index) -> Result<(), HostError> {
