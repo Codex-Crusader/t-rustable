@@ -50,9 +50,19 @@ impl Folders {
         }
     }
 
+    /// Makes the folders. On Linux, only the user can open them, because the journals
+    /// hold copies of the documents.
     pub fn create(&self) -> std::io::Result<()> {
         for dir in [&self.config, &self.sessions, &self.log, &self.mods] {
             std::fs::create_dir_all(dir)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let private = std::fs::Permissions::from_mode(0o700);
+                if let Err(e) = std::fs::set_permissions(dir, private) {
+                    log::warn!("{}: {e}", dir.display());
+                }
+            }
         }
         Ok(())
     }

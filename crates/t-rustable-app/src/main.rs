@@ -109,6 +109,7 @@ fn respond(status: u16, mime: &str, body: Vec<u8>) -> Response<Vec<u8>> {
     Response::builder()
         .status(status)
         .header("Content-Type", mime)
+        .header("X-Content-Type-Options", "nosniff")
         .header("Cache-Control", "no-store")
         .body(body)
         .expect("response")
